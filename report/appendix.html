@@ -1,0 +1,3544 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="source-file" content="中文技术报告附录_20261016.md">
+<meta name="source-sha256" content="61995d61a286892f31dfb4ab4cf57113c37897f91ff2cceafd6864c5a81035f8">
+<title>附录：Transformer 在什么条件下能够真正学会利用长距离信息</title>
+<style>
+
+:root { color-scheme: light; --ink:#2f2923; --muted:#62584b; --line:#aa9b84; --cream:#F5EDDA; }
+* { box-sizing:border-box; }
+html { background:var(--cream); }
+body { margin:0; color:var(--ink); background:var(--cream);
+  font-family:"Songti SC","Noto Serif CJK SC","Source Han Serif SC",serif;
+  font-size:14px; line-height:1.72; -webkit-font-smoothing:antialiased; }
+main { width:min(100% - 48px, 900px); margin:28px auto 48px; }
+h1,h2,h3,h4 { font-family:"PingFang SC","Noto Sans CJK SC",sans-serif;
+  color:var(--ink); font-weight:600; line-height:1.4; break-after:avoid-page; }
+h1 { font-size:23px; margin:0 0 9px; }
+h2 { font-size:18px; margin:25px 0 10px; }
+h3 { font-size:15.5px; margin:20px 0 8px; }
+h4 { font-size:14px; margin:14px 0 6px; }
+p { margin:0 0 9px; orphans:3; widows:3; }
+strong { font-weight:700; }
+a { color:#4a3828; text-decoration-thickness:.65px; text-underline-offset:2px;
+  overflow-wrap:anywhere; }
+a:hover { color:#8c6545; }
+ul,ol { margin:6px 0 11px; padding-left:1.65em; }
+li { margin:3px 0; }
+li > p { margin-bottom:4px; }
+blockquote { margin:10px 0; padding-left:12px; border-left:1px solid var(--line); }
+blockquote.finding-box { margin:12px 0 15px; padding:10px 14px;
+  border:1px solid #c89d60; border-radius:10px; background:#fcf7ed;
+  box-shadow:0 2px 0 #ecd5ae; color:var(--ink); break-inside:avoid; }
+blockquote.finding-box > :last-child { margin-bottom:0; }
+blockquote.finding-box > p + p { margin-top:5px; }
+blockquote.finding-box strong { font-weight:700; }
+code,pre { font-family:"SFMono-Regular",Menlo,monospace; font-size:.89em; }
+code { padding:0 2px; }
+pre { margin:10px 0; padding:8px 10px; background:var(--cream); white-space:pre-wrap; }
+hr { border:0; border-top:1px solid var(--line); margin:18px 0; }
+.table-wrap { margin:10px 0 13px; max-width:100%; overflow-x:auto; }
+table { width:100%; border-collapse:collapse; border-spacing:0; color:var(--ink);
+  background:var(--cream); font-family:"Times New Roman","Songti SC","Noto Serif CJK SC",serif;
+  font-size:11.5px; line-height:1.43; border-top:1.1px solid var(--ink);
+  border-bottom:1.1px solid var(--ink); font-variant-numeric:tabular-nums lining-nums; }
+thead { border-bottom:.7px solid var(--line); }
+th,td { padding:4px 6px; vertical-align:top; border:0; }
+th { font-weight:550; text-align:center; max-width:12em; overflow-wrap:anywhere; }
+td { text-align:left; overflow-wrap:anywhere; }
+td.num { text-align:right !important; white-space:nowrap; }
+td.label { text-align:left !important; }
+table a { text-decoration-thickness:.55px; }
+p:has(> img:only-child) { margin:10px 0 5px; text-align:center; break-inside:avoid; }
+img { display:block; width:auto; max-width:100%; max-height:310px; height:auto;
+  margin:0 auto; object-fit:contain; break-inside:avoid; }
+img.task-figure { max-height:155px; }
+p.figure-caption { margin:0 0 14px; color:var(--muted); font-size:12px; line-height:1.55; }
+.math-display { margin:8px 0 12px; overflow-x:auto; text-align:center; }
+.math-inline { white-space:nowrap; }
+math { color:var(--ink); font-size:1.04em; }
+math[display="block"] { margin:0; }
+@media (max-width:600px) {
+  main { width:calc(100% - 28px); margin-top:18px; }
+  body { font-size:13px; }
+  h1 { font-size:20px; }
+  h2 { font-size:17px; }
+  h3 { font-size:15px; }
+  table { font-size:10.5px; }
+  th,td { padding:3px 4px; }
+  img { max-height:280px; }
+  blockquote.finding-box { padding:9px 11px; border-radius:8px; }
+}
+@page { size:A4; margin:13mm 13mm 15mm; }
+@media print {
+  html,body { background:var(--cream); }
+  body { font-size:9.5pt; line-height:1.6; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  main { width:auto; max-width:none; margin:0; }
+  h1 { font-size:17pt; }
+  h2 { font-size:13pt; margin-top:16pt; }
+  h3 { font-size:11pt; margin-top:12pt; }
+  p { margin-bottom:6pt; }
+  .table-wrap { overflow:visible; margin:7pt 0 10pt; }
+  table { font-size:8pt; line-height:1.35; }
+  th,td { padding:3pt 4pt; }
+  thead { display:table-header-group; }
+  tr { break-inside:avoid-page; }
+  img { max-height:70mm; }
+  img.task-figure { max-height:35mm; }
+  p.figure-caption { font-size:8.4pt; }
+  a { color:inherit; }
+  .math-display { overflow:visible; }
+  blockquote.finding-box { margin:8pt 0 10pt; padding:7pt 10pt;
+    border-radius:7pt; border-bottom-width:1.5pt; box-shadow:none; break-inside:avoid-page; }
+}
+
+</style>
+<meta name="report-publication" content="1">
+<meta name="description" content="Transformer 长距离信息利用研究：技术报告、实验结果与证据附录。">
+</head>
+<body>
+<main>
+<h1 id="附录transformer-在什么条件下能够真正学会利用长距离信息">附录：Transformer 在什么条件下能够真正学会利用长距离信息</h1>
+<p><a href="index.html">返回正文</a></p>
+<p><a id="appendix-a"></a></p>
+<h2 id="附录a-初轮19种配置的完整结果">附录A 初轮19种配置的完整结果</h2>
+<p>准确率与步数均按seed 0、1、2顺序排列。稳定步数采用共同开发集连续三次达到98%的第三次检查点；“—”表示记录中未出现该事件。最终测试成绩来自保存的实际终点，M02两条续训读数单列于<a href="#appendix-d-4">附录D.4</a>。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>组</th>
+<th>条件</th>
+<th>最终长距准确率%</th>
+<th>稳定达标步数</th>
+<th>实际保存步数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">M01</td>
+<td class="label">检验一层单头能否在既定预算内学会</td>
+<td class="num">4.03 / 4.13 / 3.70</td>
+<td class="num">— / — / —</td>
+<td class="num">64000 / 64000 / 64000</td>
+</tr>
+<tr>
+<td class="label">M02</td>
+<td class="label">检验两层单头是否已足够</td>
+<td class="num">82.93 / 84.91 / 6.79</td>
+<td class="num">— / — / —</td>
+<td class="num">64000 / 64000 / 64000</td>
+</tr>
+<tr>
+<td class="label">P01</td>
+<td class="label">检验无位置编码的普通模型</td>
+<td class="num">5.65 / 4.07 / 4.74</td>
+<td class="num">— / — / —</td>
+<td class="num">24000 / 24000 / 24000</td>
+</tr>
+<tr>
+<td class="label">P02</td>
+<td class="label">检验ALiBi下的学习</td>
+<td class="num">3.28 / 3.21 / 3.18</td>
+<td class="num">— / — / —</td>
+<td class="num">24000 / 24000 / 24000</td>
+</tr>
+<tr>
+<td class="label">P03</td>
+<td class="label">直接提供邻接信息后检验NoPE检索</td>
+<td class="num">99.83 / 99.53 / 99.95</td>
+<td class="num">1250 / 2250 / 1750</td>
+<td class="num">1250 / 2250 / 1750</td>
+</tr>
+<tr>
+<td class="label">D00</td>
+<td class="label">完全移除长距查询监督</td>
+<td class="num">9.95 / 19.04 / 13.41</td>
+<td class="num">— / — / —</td>
+<td class="num">24000 / 24000 / 24000</td>
+</tr>
+<tr>
+<td class="label">D03</td>
+<td class="label">只提供3.125%的长距查询监督</td>
+<td class="num">99.74 / 99.75 / 99.75</td>
+<td class="num">5750 / 5750 / 8000</td>
+<td class="num">24000 / 24000 / 24000</td>
+</tr>
+<tr>
+<td class="label">D25</td>
+<td class="label">提供25%的长距查询监督</td>
+<td class="num">99.93 / 99.96 / 99.42</td>
+<td class="num">2750 / 7000 / 3000</td>
+<td class="num">24000 / 24000 / 24000</td>
+</tr>
+<tr>
+<td class="label">D100</td>
+<td class="label">仅提供长距查询监督</td>
+<td class="num">98.50 / 99.98 / 99.97</td>
+<td class="num">18750 / 6250 / 14750</td>
+<td class="num">24000 / 24000 / 24000</td>
+</tr>
+<tr>
+<td class="label">C00</td>
+<td class="label">直接全距离训练；共享RoPE位置对照</td>
+<td class="num">8.38 / 99.98 / 8.26</td>
+<td class="num">— / 7500 / —</td>
+<td class="num">24000 / 24000 / 24000</td>
+</tr>
+<tr>
+<td class="label">C01</td>
+<td class="label">先短距3000更新再全距21000更新</td>
+<td class="num">99.99 / 99.99 / 99.98</td>
+<td class="num">7500 / 5750 / 7250</td>
+<td class="num">24000 / 24000 / 24000</td>
+</tr>
+<tr>
+<td class="label">C02</td>
+<td class="label">相同3000短距与21000全距批次，打乱顺序</td>
+<td class="num">7.91 / 7.42 / 7.30</td>
+<td class="num">— / — / —</td>
+<td class="num">24000 / 24000 / 24000</td>
+</tr>
+<tr>
+<td class="label">E00</td>
+<td class="label">loguniform共同速度基线</td>
+<td class="num">99.93 / 99.94 / 99.86</td>
+<td class="num">4000 / 4250 / 3750</td>
+<td class="num">12000 / 12000 / 12000</td>
+</tr>
+<tr>
+<td class="label">E02</td>
+<td class="label">loguniform下比较两层速度</td>
+<td class="num">99.90 / 99.91 / 99.85</td>
+<td class="num">2250 / 3000 / 3000</td>
+<td class="num">12000 / 12000 / 12000</td>
+</tr>
+<tr>
+<td class="label">E08</td>
+<td class="label">loguniform下比较八层速度</td>
+<td class="num">99.82 / 99.88 / 99.00</td>
+<td class="num">10000 / 5500 / 11000</td>
+<td class="num">12000 / 12000 / 12000</td>
+</tr>
+<tr>
+<td class="label">EW128</td>
+<td class="label">loguniform下比较隐藏宽128</td>
+<td class="num">99.77 / 99.51 / 99.77</td>
+<td class="num">10500 / 6250 / 11750</td>
+<td class="num">12000 / 12000 / 12000</td>
+</tr>
+<tr>
+<td class="label">EW512</td>
+<td class="label">loguniform下比较隐藏宽512</td>
+<td class="num">99.80 / 99.91 / 99.95</td>
+<td class="num">10500 / 8750 / 7500</td>
+<td class="num">12000 / 12000 / 12000</td>
+</tr>
+<tr>
+<td class="label">EH1</td>
+<td class="label">注意力内部宽固定256，比较单头</td>
+<td class="num">99.84 / 99.91 / 99.44</td>
+<td class="num">5500 / 6250 / 5500</td>
+<td class="num">12000 / 12000 / 9980</td>
+</tr>
+<tr>
+<td class="label">EH16</td>
+<td class="label">注意力内部宽固定256，比较16头</td>
+<td class="num">99.59 / 99.39 / 99.59</td>
+<td class="num">4500 / 7000 / 4250</td>
+<td class="num">12000 / 12000 / 12000</td>
+</tr>
+</tbody></table></div>
+<p><a id="appendix-b"></a></p>
+<h2 id="附录b-已完成读取边遮挡的全部条件">附录B 已完成读取边遮挡的全部条件</h2>
+<p>各格为长距准确率，单位%。每条件相同512条序列、8135个长距query。四层模型遮挡零基L2/L3，两层模型遮挡L1。列标题中的偏移均相对于源key位置 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span></span>。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>模型</th>
+<th align="right">原始</th>
+<th align="right">+1</th>
+<th align="right">+7/8</th>
+<th align="right">+20/21</th>
+<th align="right">+22/23</th>
+<th align="right">+23/24</th>
+<th align="right">+59/60</th>
+<th align="right">+1至64</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">r1_B0_s0</td>
+<td align="right" class="num">99.41</td>
+<td align="right" class="num">1.41</td>
+<td align="right" class="num">99.41</td>
+<td align="right" class="num">99.42</td>
+<td align="right" class="num">99.41</td>
+<td align="right" class="num">99.41</td>
+<td align="right" class="num">99.43</td>
+<td align="right" class="num">0.77</td>
+</tr>
+<tr>
+<td class="label">pure_long512_s0</td>
+<td align="right" class="num">99.59</td>
+<td align="right" class="num">99.61</td>
+<td align="right" class="num">5.78</td>
+<td align="right" class="num">99.59</td>
+<td align="right" class="num">99.59</td>
+<td align="right" class="num">99.61</td>
+<td align="right" class="num">99.59</td>
+<td align="right" class="num">2.45</td>
+</tr>
+<tr>
+<td class="label">pure_long512_s1</td>
+<td align="right" class="num">99.85</td>
+<td align="right" class="num">10.78</td>
+<td align="right" class="num">99.85</td>
+<td align="right" class="num">99.85</td>
+<td align="right" class="num">99.85</td>
+<td align="right" class="num">99.85</td>
+<td align="right" class="num">99.85</td>
+<td align="right" class="num">5.57</td>
+</tr>
+<tr>
+<td class="label">pure_long512_s2</td>
+<td align="right" class="num">97.85</td>
+<td align="right" class="num">97.38</td>
+<td align="right" class="num">97.90</td>
+<td align="right" class="num">98.48</td>
+<td align="right" class="num">54.07</td>
+<td align="right" class="num">57.53</td>
+<td align="right" class="num">97.85</td>
+<td align="right" class="num">3.18</td>
+</tr>
+<tr>
+<td class="label">r1_T1b_s0</td>
+<td align="right" class="num">99.18</td>
+<td align="right" class="num">99.18</td>
+<td align="right" class="num">99.18</td>
+<td align="right" class="num">99.18</td>
+<td align="right" class="num">99.16</td>
+<td align="right" class="num">99.18</td>
+<td align="right" class="num">10.65</td>
+<td align="right" class="num">1.00</td>
+</tr>
+<tr>
+<td class="label">r1_M1d2_s0</td>
+<td align="right" class="num">98.68</td>
+<td align="right" class="num">2.14</td>
+<td align="right" class="num">98.70</td>
+<td align="right" class="num">98.72</td>
+<td align="right" class="num">98.70</td>
+<td align="right" class="num">98.68</td>
+<td align="right" class="num">98.68</td>
+<td align="right" class="num">1.04</td>
+</tr>
+</tbody></table></div>
+<p><a id="appendix-c"></a></p>
+<h2 id="附录c-数据与代码索引">附录C 数据与代码索引</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>内容</th>
+<th>原始记录</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">英文研究大纲</td>
+<td class="label"><span class="local-reference">outline.en.txt</span></td>
+</tr>
+<tr>
+<td class="label">本轮设计与共同配置</td>
+<td class="label"><span class="local-reference">实验方案</span>、<span class="local-reference">common_config.json</span></td>
+</tr>
+<tr>
+<td class="label">初轮57条结果与测试身份</td>
+<td class="label"><span class="local-reference">CSV</span>、<span class="local-reference">完整JSON</span></td>
+</tr>
+<tr>
+<td class="label">两层单头续训快照</td>
+<td class="label"><span class="local-reference">19:07只读快照</span></td>
+</tr>
+<tr>
+<td class="label">此前训练结果与2048训练</td>
+<td class="label"><span class="local-reference">已有证据索引</span>、<span class="local-reference">此前累计结果</span>、<span class="local-reference">12:48结果JSON</span></td>
+</tr>
+<tr>
+<td class="label">六模型读取路径与48项遮挡</td>
+<td class="label"><span class="local-reference">mechanistic_verification.json</span></td>
+</tr>
+<tr>
+<td class="label">成功单头seed 0训练轨迹</td>
+<td class="label"><span class="local-reference">metrics.jsonl</span></td>
+</tr>
+<tr>
+<td class="label">成功单头seed 1训练轨迹</td>
+<td class="label"><span class="local-reference">metrics.jsonl</span></td>
+</tr>
+<tr>
+<td class="label">成功单头seed 2训练轨迹</td>
+<td class="label"><span class="local-reference">metrics.jsonl</span></td>
+</tr>
+<tr>
+<td class="label">八层模型的已有Value探针</td>
+<td class="label"><span class="local-reference">results.json</span></td>
+</tr>
+<tr>
+<td class="label">冻结长度外评测</td>
+<td class="label"><span class="local-reference">评测结果目录</span>中各模型的<code>*-mechanism/v0/results.json</code></td>
+</tr>
+<tr>
+<td class="label">六项机制任务与权重登记</td>
+<td class="label"><span class="local-reference">mechanism_tasks.md</span>、<span class="local-reference">mechanism_tasks.json</span></td>
+</tr>
+<tr>
+<td class="label">图表复现</td>
+<td class="label"><span class="local-reference">行为图</span>、<span class="local-reference">机制图</span>、<span class="local-reference">学习速度图</span>、<span class="local-reference">总体曲线</span>、<span class="local-reference">统一样式</span>、<span class="local-reference">任务示意图</span></td>
+</tr>
+<tr>
+<td class="label">本轮246条1024结果</td>
+<td class="label"><span class="local-reference">完整CSV</span>、<span class="local-reference">冻结快照与来源</span>、<span class="local-reference">逐种子对照表</span></td>
+</tr>
+<tr>
+<td class="label">五档结构的逐种子时间与来源</td>
+<td class="label"><span class="local-reference">新增种子步数</span>、<span class="local-reference">旧seed 0/1/2时间表</span>、<span class="local-reference">旧批次来源</span></td>
+</tr>
+<tr>
+<td class="label">单头精细机制与课程阶段诊断</td>
+<td class="label"><span class="local-reference">机制结果附表</span>、<span class="local-reference">机制快照与来源</span></td>
+</tr>
+</tbody></table></div>
+<p><a id="appendix-d"></a></p>
+<h2 id="附录d-分项结果与机制诊断">附录D 分项结果与机制诊断</h2>
+<p>正文按研究问题展开，本附录保留初轮与新增种子的逐项结果。D.1至D.3分别列出位置设置、监督比例和五档结构比较，D.7至D.9列出新增种子的最小结构、课程与采样权重对照，D.10与D.11补入成功单头的精细机制及课程阶段诊断。</p>
+<p><a id="appendix-d-1"></a></p>
+<h3 id="d1-位置设置">D.1 位置设置</h3>
+<p>初轮各组的普通训练上限为24000步，smear组按共同早停条件结束。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>位置设置</th>
+<th align="right">seed 0<wbr>长距准确率</th>
+<th align="right">seed 1<wbr>长距准确率</th>
+<th align="right">seed 2<wbr>长距准确率</th>
+<th>稳定达到98%的步数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">RoPE 全距uniform</td>
+<td align="right" class="num">8.38%</td>
+<td align="right" class="num">99.98%</td>
+<td align="right" class="num">8.26%</td>
+<td class="num">— / 7500 / —</td>
+</tr>
+<tr>
+<td class="label">NoPE</td>
+<td align="right" class="num">5.65%</td>
+<td align="right" class="num">4.07%</td>
+<td align="right" class="num">4.74%</td>
+<td class="num">— / — / —</td>
+</tr>
+<tr>
+<td class="label">ALiBi</td>
+<td align="right" class="num">3.28%</td>
+<td align="right" class="num">3.21%</td>
+<td align="right" class="num">3.18%</td>
+<td class="num">— / — / —</td>
+</tr>
+<tr>
+<td class="label">NoPE加smear</td>
+<td align="right" class="num">99.83%</td>
+<td align="right" class="num">99.53%</td>
+<td align="right" class="num">99.95%</td>
+<td class="num">1250 / 2250 / 1750</td>
+</tr>
+</tbody></table></div>
+<p><strong>本轮NoPE与NoPE加smear对照。</strong> 四层、宽度256、四头，uniform，均运行24000步。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新增seed</th>
+<th align="right">NoPE长距准确率</th>
+<th align="right">NoPE加smear长距准确率</th>
+<th align="right">NoPE稳定达标步数</th>
+<th align="right">NoPE加smear稳定达标步数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">4.91%</td>
+<td align="right" class="num">100.00%</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">1250</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num">4.51%</td>
+<td align="right" class="num">99.97%</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">1000</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">4.36%</td>
+<td align="right" class="num">99.53%</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">18750</td>
+</tr>
+<tr>
+<td class="num">1003</td>
+<td align="right" class="num">5.24%</td>
+<td align="right" class="num">99.98%</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">6250</td>
+</tr>
+<tr>
+<td class="num">1004</td>
+<td align="right" class="num">3.77%</td>
+<td align="right" class="num">99.99%</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">1500</td>
+</tr>
+<tr>
+<td class="num">1005</td>
+<td align="right" class="num">5.41%</td>
+<td align="right" class="num">100.00%</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">1000</td>
+</tr>
+<tr>
+<td class="num">1006</td>
+<td align="right" class="num">4.30%</td>
+<td align="right" class="num">99.99%</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">1750</td>
+</tr>
+<tr>
+<td class="num">1007</td>
+<td align="right" class="num">4.61%</td>
+<td align="right" class="num">99.80%</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">16000</td>
+</tr>
+</tbody></table></div>
+<p><strong>本轮ALiBi加smear。</strong> 使用seed 0、1、2，均运行24000步，与上表的新增seed分别列出。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">ALiBi加smear长距准确率</th>
+<th align="right">稳定达标步数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td align="right" class="num">9.66%</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">2.62%</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">46.63%</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+</tbody></table></div>
+<p>数据来源：<span class="local-reference">本轮逐种子结果</span>、<span class="local-reference">结果快照与来源</span>。</p>
+<p><a id="appendix-d-2"></a></p>
+<h3 id="d2-长距监督比例">D.2 长距监督比例</h3>
+<p>所有配置运行24000步，每次更新包含4096个查询。3.125%与25%分别对应128个和1024个长距查询。</p>
+<p><strong>初轮seed 0、1、2。</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>长距监督比例</th>
+<th align="right">seed 0<wbr>长距准确率</th>
+<th align="right">seed 1<wbr>长距准确率</th>
+<th align="right">seed 2<wbr>长距准确率</th>
+<th align="right">seed 0<wbr>稳定达标步数</th>
+<th align="right">seed 1<wbr>稳定达标步数</th>
+<th align="right">seed 2<wbr>稳定达标步数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0%</td>
+<td align="right" class="num">9.95%</td>
+<td align="right" class="num">19.04%</td>
+<td align="right" class="num">13.41%</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">3.125%</td>
+<td align="right" class="num">99.74%</td>
+<td align="right" class="num">99.75%</td>
+<td align="right" class="num">99.75%</td>
+<td align="right" class="num">5750</td>
+<td align="right" class="num">5750</td>
+<td align="right" class="num">8000</td>
+</tr>
+<tr>
+<td class="num">25%</td>
+<td align="right" class="num">99.93%</td>
+<td align="right" class="num">99.96%</td>
+<td align="right" class="num">99.42%</td>
+<td align="right" class="num">2750</td>
+<td align="right" class="num">7000</td>
+<td align="right" class="num">3000</td>
+</tr>
+<tr>
+<td class="num">100%</td>
+<td align="right" class="num">98.50%</td>
+<td align="right" class="num">99.98%</td>
+<td align="right" class="num">99.97%</td>
+<td align="right" class="num">18750</td>
+<td align="right" class="num">6250</td>
+<td align="right" class="num">14750</td>
+</tr>
+</tbody></table></div>
+<p>纯长距组的短距测试准确率按seed 0、1、2依次为2.11%、86.93%和37.20%。共同短距测试覆盖4至511，比例实验的短距训练池只覆盖4至96。</p>
+<p>已有较早结束的纯短距实验长距准确率为0.94%、0.87%和0.91%，纯长距实验为97.81%至99.90%。固定24000步的纯短距训练获得了更多迁移，但仍未达到混入长距监督后的高精度。</p>
+<p><strong>本轮新增种子。</strong> 各组仍运行24000步；“—”表示未登记该种子的对应配置。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新增seed</th>
+<th align="right">0%长距准确率</th>
+<th align="right">3.125%长距准确率</th>
+<th align="right">25%长距准确率</th>
+<th align="right">100%长距准确率</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">9.02%</td>
+<td align="right" class="num">99.62%</td>
+<td align="right" class="num">99.83%</td>
+<td align="right" class="num">99.96%</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num">6.48%</td>
+<td align="right" class="num">99.86%</td>
+<td align="right" class="num">99.87%</td>
+<td align="right" class="num">97.98%</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">3.57%</td>
+<td align="right" class="num">99.55%</td>
+<td align="right" class="num">99.92%</td>
+<td align="right" class="num">99.97%</td>
+</tr>
+<tr>
+<td class="num">1003</td>
+<td align="right" class="num">15.85%</td>
+<td align="right" class="num">99.84%</td>
+<td align="right" class="num">99.94%</td>
+<td align="right" class="num">99.98%</td>
+</tr>
+<tr>
+<td class="num">1004</td>
+<td align="right" class="num">6.69%</td>
+<td align="right" class="num">99.80%</td>
+<td align="right" class="num">99.96%</td>
+<td align="right" class="num">99.97%</td>
+</tr>
+<tr>
+<td class="num">1005</td>
+<td align="right" class="num">5.55%</td>
+<td align="right" class="num">99.59%</td>
+<td align="right" class="num">99.93%</td>
+<td align="right" class="num">99.96%</td>
+</tr>
+<tr>
+<td class="num">1006</td>
+<td align="right" class="num">9.50%</td>
+<td align="right" class="num">99.73%</td>
+<td align="right" class="num">99.97%</td>
+<td align="right" class="num">98.48%</td>
+</tr>
+<tr>
+<td class="num">1007</td>
+<td align="right" class="num">12.84%</td>
+<td align="right" class="num">99.86%</td>
+<td align="right" class="num">99.80%</td>
+<td align="right" class="num">98.08%</td>
+</tr>
+<tr>
+<td class="num">1008</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.81%</td>
+<td align="right" class="num">99.85%</td>
+<td align="right" class="num">99.98%</td>
+</tr>
+<tr>
+<td class="num">1009</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.83%</td>
+<td align="right" class="num">99.94%</td>
+<td align="right" class="num">99.92%</td>
+</tr>
+<tr>
+<td class="num">1010</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.67%</td>
+<td align="right" class="num">99.89%</td>
+<td align="right" class="num">99.98%</td>
+</tr>
+<tr>
+<td class="num">1011</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.80%</td>
+<td align="right" class="num">98.49%</td>
+<td align="right" class="num">99.95%</td>
+</tr>
+<tr>
+<td class="num">1012</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.71%</td>
+<td align="right" class="num">99.87%</td>
+<td align="right" class="num">99.96%</td>
+</tr>
+<tr>
+<td class="num">1013</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.53%</td>
+<td align="right" class="num">99.81%</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1014</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.75%</td>
+<td align="right" class="num">99.91%</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1015</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.66%</td>
+<td align="right" class="num">99.92%</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1016</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.70%</td>
+<td align="right" class="num">99.97%</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1017</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.51%</td>
+<td align="right" class="num">99.92%</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1018</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.86%</td>
+<td align="right" class="num">99.89%</td>
+<td align="right" class="num">—</td>
+</tr>
+</tbody></table></div>
+<p><strong>逐种子稳定达标步数。</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新增seed</th>
+<th align="right">0%</th>
+<th align="right">3.125%</th>
+<th align="right">25%</th>
+<th align="right">100%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">19000</td>
+<td align="right" class="num">5000</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">2500</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">13750</td>
+<td align="right" class="num">2750</td>
+<td align="right" class="num">13500</td>
+</tr>
+<tr>
+<td class="num">1003</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">6000</td>
+<td align="right" class="num">2750</td>
+<td align="right" class="num">13000</td>
+</tr>
+<tr>
+<td class="num">1004</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">5500</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">7500</td>
+</tr>
+<tr>
+<td class="num">1005</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">6500</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">15000</td>
+</tr>
+<tr>
+<td class="num">1006</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">8250</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">24000</td>
+</tr>
+<tr>
+<td class="num">1007</td>
+<td align="right" class="num">&gt;24000</td>
+<td align="right" class="num">16500</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">1008</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">10500</td>
+<td align="right" class="num">2750</td>
+<td align="right" class="num">10000</td>
+</tr>
+<tr>
+<td class="num">1009</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">8250</td>
+<td align="right" class="num">7250</td>
+<td align="right" class="num">13750</td>
+</tr>
+<tr>
+<td class="num">1010</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">7750</td>
+<td align="right" class="num">3750</td>
+<td align="right" class="num">8750</td>
+</tr>
+<tr>
+<td class="num">1011</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">10500</td>
+<td align="right" class="num">21500</td>
+<td align="right" class="num">8000</td>
+</tr>
+<tr>
+<td class="num">1012</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">8250</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">11000</td>
+</tr>
+<tr>
+<td class="num">1013</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">8000</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1014</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">7000</td>
+<td align="right" class="num">4750</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1015</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">2250</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1016</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">5250</td>
+<td align="right" class="num">2750</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1017</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">7500</td>
+<td align="right" class="num">7500</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1018</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">6500</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">—</td>
+</tr>
+</tbody></table></div>
+<p>“&gt;24000”表示预算内未连续三次在开发集达到98%。D100的seed 1007最终测试达到98%，但尚无稳定达标时间，两个读数分别保留。</p>
+<p>数据来源：<span class="local-reference">本轮逐种子结果</span>、<span class="local-reference">结果快照与来源</span>。</p>
+<p><a id="appendix-d-3"></a></p>
+<h3 id="d3-模型结构与学习速度">D.3 模型结构与学习速度</h3>
+<p>表内为开发集稳定达到98%长距准确率的更新数，所有配置使用loguniform采样。</p>
+<p><strong>初轮及同期扩展：seed 0、1、2。</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>变化轴</th>
+<th>配置</th>
+<th align="right">seed 0</th>
+<th align="right">seed 1</th>
+<th align="right">seed 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">深度</td>
+<td class="label">2层</td>
+<td align="right" class="num">2250</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">3000</td>
+</tr>
+<tr>
+<td class="label">深度</td>
+<td class="label">4层</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">4250</td>
+<td align="right" class="num">3750</td>
+</tr>
+<tr>
+<td class="label">深度</td>
+<td class="label">6层</td>
+<td align="right" class="num">9500</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">5000</td>
+</tr>
+<tr>
+<td class="label">深度</td>
+<td class="label">8层</td>
+<td align="right" class="num">10000</td>
+<td align="right" class="num">5500</td>
+<td align="right" class="num">11000</td>
+</tr>
+<tr>
+<td class="label">深度</td>
+<td class="label">10层</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="label">宽度</td>
+<td class="num">64</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="label">宽度</td>
+<td class="num">128</td>
+<td align="right" class="num">10500</td>
+<td align="right" class="num">6250</td>
+<td align="right" class="num">11750</td>
+</tr>
+<tr>
+<td class="label">宽度</td>
+<td class="num">256</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">4250</td>
+<td align="right" class="num">3750</td>
+</tr>
+<tr>
+<td class="label">宽度</td>
+<td class="num">512</td>
+<td align="right" class="num">10500</td>
+<td align="right" class="num">8750</td>
+<td align="right" class="num">7500</td>
+</tr>
+<tr>
+<td class="label">宽度</td>
+<td class="num">1024</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="label">头数</td>
+<td class="num">1</td>
+<td align="right" class="num">5500</td>
+<td align="right" class="num">6250</td>
+<td align="right" class="num">5500</td>
+</tr>
+<tr>
+<td class="label">头数</td>
+<td class="num">2</td>
+<td align="right" class="num">5250</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">3250</td>
+</tr>
+<tr>
+<td class="label">头数</td>
+<td class="num">4</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">4250</td>
+<td align="right" class="num">3750</td>
+</tr>
+<tr>
+<td class="label">头数</td>
+<td class="num">8</td>
+<td align="right" class="num">2750</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">4750</td>
+</tr>
+<tr>
+<td class="label">头数</td>
+<td class="num">16</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">7000</td>
+<td align="right" class="num">4250</td>
+</tr>
+</tbody></table></div>
+<p>“&gt;12000”表示共同窗口内未稳定达标；“—”表示尚缺完整可核对的时间记录。额外续训的步数不混入本表。</p>
+<p>宽度实验固定4头；头数实验固定隐藏宽度和注意力内部宽度为256，对应单头维度为256、128、64、32或16。这里的EH1与下节已有四层单头轨迹使用不同的注意力内部宽度。</p>
+<p><strong>本轮新增种子。</strong> 三条轴均使用loguniform采样、12000步预算；层数轴固定宽度256、四头，宽度轴固定四层、四头，头数轴固定四层及隐藏宽度与注意力内部宽度256。E00为三条轴共用基线，同一条记录不重复计数。</p>
+<p><strong>层数。</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新增seed</th>
+<th align="right">2层</th>
+<th align="right">4层</th>
+<th align="right">6层</th>
+<th align="right">8层</th>
+<th align="right">10层</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">2250</td>
+<td align="right" class="num">5500</td>
+<td align="right" class="num">4250</td>
+<td align="right" class="num">6000</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num">3750</td>
+<td align="right" class="num">3750</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">3000</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">8000</td>
+<td align="right" class="num">5750</td>
+</tr>
+<tr>
+<td class="num">1003</td>
+<td align="right" class="num">2750</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">1750</td>
+<td align="right" class="num">5750</td>
+</tr>
+<tr>
+<td class="num">1004</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">5750</td>
+<td align="right" class="num">1750</td>
+</tr>
+<tr>
+<td class="num">1005</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">5000</td>
+<td align="right" class="num">5000</td>
+<td align="right" class="num">4250</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1006</td>
+<td align="right" class="num">2750</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">4750</td>
+<td align="right" class="num">4750</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1007</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">12000</td>
+<td align="right" class="num">10750</td>
+<td align="right" class="num">1750</td>
+</tr>
+<tr>
+<td class="num">1008</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">8250</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">6750</td>
+</tr>
+<tr>
+<td class="num">1009</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4250</td>
+</tr>
+<tr>
+<td class="num">1010</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1011</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4250</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1012</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4750</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+</tr>
+</tbody></table></div>
+<p><strong>宽度。</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新增seed</th>
+<th align="right">64</th>
+<th align="right">128</th>
+<th align="right">256</th>
+<th align="right">512</th>
+<th align="right">1024</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">5500</td>
+<td align="right" class="num">7250</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">3750</td>
+<td align="right" class="num">10500</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">10250</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">8750</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1003</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">5750</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1004</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">7000</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1005</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">5000</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1006</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">7500</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1007</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1008</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1009</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1010</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1011</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4250</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="num">1012</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4750</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+</tr>
+</tbody></table></div>
+<p><strong>头数。</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新增seed</th>
+<th align="right">1头</th>
+<th align="right">2头</th>
+<th align="right">4头</th>
+<th align="right">8头</th>
+<th align="right">16头</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">5000</td>
+<td align="right" class="num">3750</td>
+<td align="right" class="num">5500</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num">9000</td>
+<td align="right" class="num">3750</td>
+<td align="right" class="num">3750</td>
+<td align="right" class="num">5500</td>
+<td align="right" class="num">4250</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">5000</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">5000</td>
+<td align="right" class="num">7750</td>
+</tr>
+<tr>
+<td class="num">1003</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">5250</td>
+<td align="right" class="num">5250</td>
+</tr>
+<tr>
+<td class="num">1004</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">2750</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">8500</td>
+</tr>
+<tr>
+<td class="num">1005</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">5000</td>
+<td align="right" class="num">6500</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1006</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">6000</td>
+<td align="right" class="num">4750</td>
+</tr>
+<tr>
+<td class="num">1007</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">4750</td>
+<td align="right" class="num">7000</td>
+</tr>
+<tr>
+<td class="num">1008</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4000</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">10250</td>
+<td align="right" class="num">8000</td>
+</tr>
+<tr>
+<td class="num">1009</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">7250</td>
+<td align="right" class="num">9250</td>
+</tr>
+<tr>
+<td class="num">1010</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">3500</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">6000</td>
+</tr>
+<tr>
+<td class="num">1011</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4250</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">3500</td>
+</tr>
+<tr>
+<td class="num">1012</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4750</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4750</td>
+</tr>
+</tbody></table></div>
+<p>新增表中的“—”表示未登记该种子的对应配置；“&gt;12000”表示预算内没有稳定达标时间。</p>
+<p>数据来源：<span class="local-reference">本轮逐种子结果</span>、<span class="local-reference">结果快照与来源</span>。</p>
+<p><a id="appendix-d-4"></a></p>
+<h3 id="d4-训练轨迹表示探针与读取诊断">D.4 训练轨迹、表示探针与读取诊断</h3>
+<p><strong>四层单头的训练轨迹。</strong> 三个模型的隐藏宽度均为256，每层1头，单头维度64。准确率采用固定开发集（seed 777）的前512条序列，其中长距查询为8135个；注意力诊断使用前16条序列，其中长距查询254个、短距查询258个。绑定指标为源值位置对前一键的注意力，读取指标为查询对源值的注意力。L0表示第一层，每个种子持续跟踪同一对层。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th>更新数</th>
+<th>训练中benchmark子集长距准确率</th>
+<th>绑定层及注意力质量</th>
+<th>读取层及注意力质量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td class="label">12000 → 13000 → 14000</td>
+<td class="label">5.22% → 14.16% → 99.39%</td>
+<td class="label">L2：0.181 → 0.680 → 1.000</td>
+<td class="label">L3：0.018 → 0.087 → 0.961</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">33000 → 34000 → 35000</td>
+<td class="label">6.72% → 8.29% → 97.90%</td>
+<td class="label">L1：0.144 → 0.691 → 0.999</td>
+<td class="label">L2：0.019 → 0.028 → 0.873</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">14000 → 15000 → 16000</td>
+<td class="label">4.13% → 10.29% → 99.24%</td>
+<td class="label">L1：0.040 → 0.264 → 1.000</td>
+<td class="label">L2：0.001 → 0.067 → 0.961</td>
+</tr>
+</tbody></table></div>
+<p>这些记录每1000步保存一次，展示跃升前后的变化；对应实际快照的冻结干预已补齐，见<a href="#appendix-d-13">附录D.13</a>。</p>
+<p><strong>两层单头的续训与读取诊断。</strong> 2026年10月16日19:07的续训快照中，seed 0在97825步的开发集长距准确率为92.82%，seed 1在97975步为85.97%。这两项为续训开发集读数，初轮64000步的共同测试成绩见<a href="#appendix-a">附录A</a>；新增种子的同预算成绩另列于<a href="#appendix-d-7">附录D.7</a>。</p>
+<p> 在64000步的16条固定诊断序列上，seed 0、1、2的第二层查询对正确源值的长距注意力分别为0.731、0.567和0.009。</p>
+<p><strong>一层模型的邻接信息补充。</strong> 在已有对照中，一层四头加smear的三个种子均在1000步达到约99.98%的长距准确率。该实验直接提供前一词元的嵌入信息，用于检验浅层模型获得局部关联后的学习表现；对应证据索引见<a href="#appendix-c">附录C</a>。</p>
+<p>本轮进一步在一层单头、隐藏宽度256、头维度256的模型上加入smear，三个种子均运行64000步。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">最终长距准确率</th>
+<th align="right">稳定达标步数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td align="right" class="num">100.00%</td>
+<td align="right" class="num">1000</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">100.00%</td>
+<td align="right" class="num">1000</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">100.00%</td>
+<td align="right" class="num">1000</td>
+</tr>
+</tbody></table></div>
+<p><strong>已有八层模型的答案探针。</strong> 在查询位置，输入嵌入及第一至八层输出上预测正确值的线性探针准确率依次为0.51%、0.83%、0.68%、0.76%、3.22%、3.30%、62.30%、76.51%和82.91%。原模型的长距准确率为88.29%。探针使用512条训练序列、128条测试序列，训练线性头400步，Transformer参数冻结。</p>
+<p><strong>中继位置的注意力与距离评测。</strong> 纯长距seed 0在第二层的 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>+</mo><mn>7</mn></mrow><annotation encoding="application/x-tex">s+7</annotation></semantics></math></span></span>、<span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>+</mo><mn>8</mn></mrow><annotation encoding="application/x-tex">s+8</annotation></semantics></math></span></span> 处用多个头关注源值，另一个头关注源键；随后第三层的查询对这两个位置分配约0.93至0.95的总注意力。对依赖 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>+</mo><mn>59</mn><mo separator="true">,</mo><mi>s</mi><mo>+</mo><mn>60</mn></mrow><annotation encoding="application/x-tex">s+59,s+60</annotation></semantics></math></span></span> 的模型，逐距离准确率为：<span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><mo>=</mo><mn>59</mn></mrow><annotation encoding="application/x-tex">\Delta=59</annotation></semantics></math></span></span> 时3.76%，<span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><mo>=</mo><mn>60</mn></mrow><annotation encoding="application/x-tex">\Delta=60</annotation></semantics></math></span></span> 时56.00%，61至64为56.38%，97至127为94.59%，128至255为99.44%。纯长距seed 2遮挡 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>+</mo><mn>22</mn><mo separator="true">,</mo><mi>s</mi><mo>+</mo><mn>23</mn></mrow><annotation encoding="application/x-tex">s+22,s+23</annotation></semantics></math></span></span> 后仍保留部分准确率，遮挡 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">s+1</annotation></semantics></math></span></span> 至 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>+</mo><mn>64</mn></mrow><annotation encoding="application/x-tex">s+64</annotation></semantics></math></span></span> 后降至3.18%。全部遮挡读数见<a href="#appendix-b">附录B</a>。</p>
+<p><a id="appendix-d-5"></a></p>
+<h3 id="d5-更长上下文训练与机制扩展">D.5 更长上下文训练与机制扩展</h3>
+<p><strong>2048训练。</strong></p>
+<p>长距范围相应改为 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><mo>≥</mo><mn>1024</mn></mrow><annotation encoding="application/x-tex">\Delta\geq1024</annotation></semantics></math></span></span>，查询数与干扰关联数随长度扩展。表内为各模型最终保存权重的测试结果。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>训练条件</th>
+<th align="right">更新预算</th>
+<th align="right">seed 0<wbr>长距准确率</th>
+<th align="right">seed 1<wbr>长距准确率</th>
+<th align="right">seed 2<wbr>长距准确率</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">全距uniform</td>
+<td align="right" class="num">24000</td>
+<td align="right" class="num">1.69%</td>
+<td align="right" class="num">3.26%</td>
+<td align="right" class="num">2.36%</td>
+</tr>
+<tr>
+<td class="label">全距uniform加smear</td>
+<td align="right" class="label">24000上限</td>
+<td align="right" class="num">1.49%</td>
+<td align="right" class="num">1.15%</td>
+<td align="right" class="num">99.52%</td>
+</tr>
+<tr>
+<td class="label">全距loguniform</td>
+<td align="right" class="num">12000</td>
+<td align="right" class="num">99.76%</td>
+<td align="right" class="num">80.34%</td>
+<td align="right" class="num">35.22%</td>
+</tr>
+</tbody></table></div>
+<p><strong>4096上下文的冻结机制扩展。</strong> 两个已学会模型均为两层四头，宽256，每条序列含128个查询与128个干扰关联。读取限制使用同一seed 904000评测集，512条序列、65536个查询，其中长距查询32705个。两行的训练种子不同，按模型分别解释其读取依赖。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>模型</th>
+<th>正常长距%</th>
+<th>限制局部读取后%</th>
+<th>限制远距读取后%</th>
+<th>同时限制%</th>
+<th>局部无关词元对照%</th>
+<th>远距无关词元对照%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">先短后全 · seed 2002</td>
+<td class="num">99.9083</td>
+<td class="num">53.8297</td>
+<td class="num">57.6395</td>
+<td class="num">53.6523</td>
+<td class="num">99.9113</td>
+<td class="num">99.9052</td>
+</tr>
+<tr>
+<td class="label">打乱顺序 · seed 2000</td>
+<td class="num">99.8899</td>
+<td class="num">1.3240</td>
+<td class="num">92.2214</td>
+<td class="num">1.0946</td>
+<td class="num">99.8869</td>
+<td class="num">99.8869</td>
+</tr>
+</tbody></table></div>
+<p>完整33个4096包的来源与阶段状态见<span class="local-reference">全部机制包索引</span>。</p>
+<p><a id="appendix-d-6"></a></p>
+<h3 id="d6-冻结模型的1024到2048评测">D.6 冻结模型的1024到2048评测</h3>
+<p>模型在1024训练，直接在2048评测，参数不再更新。表内报告新长距范围 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><mo>≥</mo><mn>1024</mn></mrow><annotation encoding="application/x-tex">\Delta\geq1024</annotation></semantics></math></span></span> 的准确率。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>1024训练模型</th>
+<th align="right">seed 0</th>
+<th align="right">seed 1</th>
+<th align="right">seed 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">全距uniform 四层四头</td>
+<td align="right" class="num">12.87%</td>
+<td align="right" class="num">2.39%</td>
+<td align="right" class="num">22.86%</td>
+</tr>
+<tr>
+<td class="label">全距loguniform 四层四头</td>
+<td align="right" class="num">50.54%</td>
+<td align="right" class="num">61.69%</td>
+<td align="right" class="num">45.72%</td>
+</tr>
+<tr>
+<td class="label">纯长距 四层四头</td>
+<td align="right" class="num">30.02%</td>
+<td align="right" class="num">21.80%</td>
+<td align="right" class="num">3.05%</td>
+</tr>
+<tr>
+<td class="label">全距uniform 两层四头</td>
+<td align="right" class="num">12.95%</td>
+<td align="right" class="num">2.17%</td>
+<td align="right" class="num">24.48%</td>
+</tr>
+</tbody></table></div>
+<p>该组评测包含4096条序列、262144个查询，并将每条序列的查询数和干扰关联数由32增加到64；结果反映长度、位置与任务负载共同变化时的迁移表现。</p>
+<p><a id="appendix-d-7"></a></p>
+<h3 id="d7-新增种子的最小结构对照">D.7 新增种子的最小结构对照</h3>
+<p>表中为新增seed在64000步权重上的共同测试结果，对应第3.1节与图4。第3.1节以长距准确率不低于80%作为基本学会的判据。新增两层单头seed 1000、1003在开发集首次达到98%的步数分别为21250、19500；64000步共同测试中也超过98%。seed 1001的终点为97.56%，不记为超过98%的实例。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新增seed</th>
+<th align="right">一层单头长距准确率</th>
+<th align="right">两层单头长距准确率</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">4.36%</td>
+<td align="right" class="num">99.78%</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num">4.45%</td>
+<td align="right" class="num">97.56%</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">4.34%</td>
+<td align="right" class="num">20.16%</td>
+</tr>
+<tr>
+<td class="num">1003</td>
+<td align="right" class="num">3.79%</td>
+<td align="right" class="num">99.98%</td>
+</tr>
+<tr>
+<td class="num">1004</td>
+<td align="right" class="num">4.39%</td>
+<td align="right" class="num">2.77%</td>
+</tr>
+<tr>
+<td class="num">1005</td>
+<td align="right" class="num">3.76%</td>
+<td align="right" class="num">6.53%</td>
+</tr>
+<tr>
+<td class="num">1006</td>
+<td align="right" class="num">4.39%</td>
+<td align="right" class="num">7.14%</td>
+</tr>
+<tr>
+<td class="num">1007</td>
+<td align="right" class="num">4.41%</td>
+<td align="right" class="num">5.89%</td>
+</tr>
+<tr>
+<td class="num">1008</td>
+<td align="right" class="num">3.98%</td>
+<td align="right" class="num">3.07%</td>
+</tr>
+<tr>
+<td class="num">1009</td>
+<td align="right" class="num">4.08%</td>
+<td align="right" class="num">2.54%</td>
+</tr>
+<tr>
+<td class="num">1010</td>
+<td align="right" class="num">4.35%</td>
+<td align="right" class="num">80.67%</td>
+</tr>
+</tbody></table></div>
+<p>数据来源：<span class="local-reference">本轮逐种子结果</span>、<span class="local-reference">结果快照与来源</span>。</p>
+<p><a id="appendix-d-8"></a></p>
+<h3 id="d8-新增种子的训练顺序对照">D.8 新增种子的训练顺序对照</h3>
+<p>两组使用相同的短距与全距批次集合、相同的总预算，区别为先短后全或将批次顺序打乱，对应第4.2节与图22。达标步数均从训练开始累计；先短后全包含完整3000步短距阶段，打乱组按实际顺序累计已进行的更新。“&gt;24000”表示共同预算内未稳定达到高精度目标。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新增seed</th>
+<th align="right">先短后全长距准确率</th>
+<th align="right">相同批次打乱长距准确率</th>
+<th align="right">先短后全达标步数</th>
+<th align="right">打乱达标步数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">99.99%</td>
+<td align="right" class="num">99.45%</td>
+<td align="right" class="num">6000</td>
+<td align="right" class="num">23750</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num">99.94%</td>
+<td align="right" class="num">7.62%</td>
+<td align="right" class="num">3750</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">99.99%</td>
+<td align="right" class="num">7.54%</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">1003</td>
+<td align="right" class="num">99.99%</td>
+<td align="right" class="num">7.78%</td>
+<td align="right" class="num">4250</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">1004</td>
+<td align="right" class="num">99.94%</td>
+<td align="right" class="num">8.05%</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">1005</td>
+<td align="right" class="num">99.97%</td>
+<td align="right" class="num">99.96%</td>
+<td align="right" class="num">4750</td>
+<td align="right" class="num">14750</td>
+</tr>
+<tr>
+<td class="num">1006</td>
+<td align="right" class="num">99.97%</td>
+<td align="right" class="num">7.96%</td>
+<td align="right" class="num">5000</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+<tr>
+<td class="num">1007</td>
+<td align="right" class="num">99.98%</td>
+<td align="right" class="num">7.68%</td>
+<td align="right" class="num">3750</td>
+<td align="right" class="num">&gt;24000</td>
+</tr>
+</tbody></table></div>
+<p>数据来源：<span class="local-reference">本轮逐种子结果</span>、<span class="local-reference">结果快照与来源</span>。</p>
+<p><a id="appendix-d-9"></a></p>
+<h3 id="d9-新增种子的距离采样权重对照">D.9 新增种子的距离采样权重对照</h3>
+<p>四层、宽度256、四头，C00使用uniform，E00使用loguniform，两组均运行12000步。seed 1000至1011逐一配对；seed 1012只有E00结果，不纳入配对比较。“—”表示未登记对应配置，“&gt;12000”表示预算内未稳定达标。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新增seed</th>
+<th align="right">uniform长距准确率</th>
+<th align="right">loguniform长距准确率</th>
+<th align="right">uniform达标步数</th>
+<th align="right">loguniform达标步数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">6.10%</td>
+<td align="right" class="num">99.95%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">5500</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num">6.40%</td>
+<td align="right" class="num">99.87%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">3750</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">7.58%</td>
+<td align="right" class="num">99.95%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">4000</td>
+</tr>
+<tr>
+<td class="num">1003</td>
+<td align="right" class="num">7.10%</td>
+<td align="right" class="num">99.96%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">3000</td>
+</tr>
+<tr>
+<td class="num">1004</td>
+<td align="right" class="num">6.50%</td>
+<td align="right" class="num">99.97%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">4000</td>
+</tr>
+<tr>
+<td class="num">1005</td>
+<td align="right" class="num">7.34%</td>
+<td align="right" class="num">99.96%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">5000</td>
+</tr>
+<tr>
+<td class="num">1006</td>
+<td align="right" class="num">6.50%</td>
+<td align="right" class="num">99.97%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">3250</td>
+</tr>
+<tr>
+<td class="num">1007</td>
+<td align="right" class="num">7.51%</td>
+<td align="right" class="num">99.89%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">4000</td>
+</tr>
+<tr>
+<td class="num">1008</td>
+<td align="right" class="num">7.45%</td>
+<td align="right" class="num">99.89%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">4500</td>
+</tr>
+<tr>
+<td class="num">1009</td>
+<td align="right" class="num">7.70%</td>
+<td align="right" class="num">94.56%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">&gt;12000</td>
+</tr>
+<tr>
+<td class="num">1010</td>
+<td align="right" class="num">7.74%</td>
+<td align="right" class="num">99.88%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">3500</td>
+</tr>
+<tr>
+<td class="num">1011</td>
+<td align="right" class="num">7.36%</td>
+<td align="right" class="num">99.81%</td>
+<td align="right" class="num">&gt;12000</td>
+<td align="right" class="num">4250</td>
+</tr>
+<tr>
+<td class="num">1012</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">99.91%</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">4750</td>
+</tr>
+</tbody></table></div>
+<p>本表的新uniform对照预算为12000步，初轮C00的24000步结果保留在<a href="#appendix-a">附录A</a>。</p>
+<p>数据来源：<span class="local-reference">本轮逐种子结果</span>、<span class="local-reference">结果快照与来源</span>。</p>
+<p><a id="appendix-d-10"></a></p>
+<h3 id="d10-成功四层单头模型的绑定读取与激活恢复">D.10 成功四层单头模型的绑定、读取与激活恢复</h3>
+<p>本组机制评测使用 <code>r1_M4h64_s1_cap64000</code> 的35750步权重：4层、隐藏宽度256、每层1头、头维度64，1024上下文、RoPE、无smear。第二层的头在值位置 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">s+1</annotation></semantics></math></span></span> 读取源键 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span></span>，第三层的头从查询 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi></mrow><annotation encoding="application/x-tex">q</annotation></semantics></math></span></span> 读取 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">s+1</annotation></semantics></math></span></span>；对应零基层索引为 <code>L1H0</code> 和 <code>L2H0</code>。</p>
+<p><strong>逐边遮挡。</strong> 各条件使用相同4096条序列、65367个长距查询。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>条件</th>
+<th align="right">长距准确率%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">原始前向</td>
+<td align="right" class="num">99.564</td>
+</tr>
+<tr>
+<td class="label">无操作重算</td>
+<td align="right" class="num">99.475</td>
+</tr>
+<tr>
+<td class="label">遮挡绑定边：值位置读取源键</td>
+<td align="right" class="num">2.289</td>
+</tr>
+<tr>
+<td class="label">遮挡读取边：查询读取值位置</td>
+<td align="right" class="num">1.079</td>
+</tr>
+<tr>
+<td class="label">同时遮挡两条边</td>
+<td align="right" class="num">0.898</td>
+</tr>
+<tr>
+<td class="label">绑定边的无关位置对照</td>
+<td align="right" class="num">99.564</td>
+</tr>
+<tr>
+<td class="label">读取边的无关位置对照</td>
+<td align="right" class="num">99.477</td>
+</tr>
+<tr>
+<td class="label">读取头输出置零</td>
+<td align="right" class="num">7.319</td>
+</tr>
+<tr>
+<td class="label">其他层/头输出置零对照</td>
+<td align="right" class="num">95.596</td>
+</tr>
+</tbody></table></div>
+<p><strong>激活恢复。</strong> 使用512对序列，每条选取一个长距查询；反事实输入将源值替换为另一个值，答案随之改变；查询位置与依赖距离保持不变。恢复率 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mo stretchy="false">(</mo><msub><mi>M</mi><mrow><mi mathvariant="normal">p</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">h</mi></mrow></msub><mo>−</mo><msub><mi>M</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">t</mi></mrow></msub><mo stretchy="false">)</mo><mi mathvariant="normal">/</mi><mo stretchy="false">(</mo><msub><mi>M</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">n</mi></mrow></msub><mo>−</mo><msub><mi>M</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">t</mi></mrow></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">R=(M_{\mathrm{patch}}-M_{\mathrm{corrupt}})/(M_{\mathrm{clean}}-M_{\mathrm{corrupt}})</annotation></semantics></math></span></span>，其中 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi></mrow><annotation encoding="application/x-tex">M</annotation></semantics></math></span></span> 为原值与替换值的平均logit差。身份对照将反事实激活原位写回，输出保持一致。这里测量干预后完整模型的输出；Olsson等的copying评测则单独计算头输出经反嵌入层对词元logit的直接贡献。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>条件</th>
+<th align="right">输出原值%</th>
+<th align="right">输出替换值%</th>
+<th align="right">恢复率R</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">原始输入</td>
+<td align="right" class="num">99.609</td>
+<td align="right" class="num">0.000</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="label">替换源值后的输入</td>
+<td align="right" class="num">0.000</td>
+<td align="right" class="num">99.414</td>
+<td align="right" class="num">—</td>
+</tr>
+<tr>
+<td class="label">恢复绑定层之后的值位置表示</td>
+<td align="right" class="num">99.609</td>
+<td align="right" class="num">0.000</td>
+<td align="right" class="num">0.9993</td>
+</tr>
+<tr>
+<td class="label">恢复查询处读取头输出</td>
+<td align="right" class="num">99.414</td>
+<td align="right" class="num">0.000</td>
+<td align="right" class="num">0.9276</td>
+</tr>
+<tr>
+<td class="label">恢复无关位置</td>
+<td align="right" class="num">0.000</td>
+<td align="right" class="num">99.414</td>
+<td align="right" class="num">0.0000</td>
+</tr>
+<tr>
+<td class="label">身份对照</td>
+<td align="right" class="num">0.000</td>
+<td align="right" class="num">99.414</td>
+<td align="right" class="num">0.0000</td>
+</tr>
+</tbody></table></div>
+<p><strong>线性探针。</strong> Transformer冻结，探针使用独立生成的512/128/128条训练、验证、测试序列。下表为4096个测试查询的准确率，各格按“真实标签 / 置乱标签”排列；键和值的机会水平分别为0.195%与0.781%。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>特征位置</th>
+<th align="right">键预测准确率%</th>
+<th align="right">值预测准确率%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">原值位置 s+1 的输入嵌入</td>
+<td align="right" class="num">0.244 / 0.391</td>
+<td align="right" class="num">100.000 / 0.781</td>
+</tr>
+<tr>
+<td class="label">绑定层之后 s+1 的残差表示</td>
+<td align="right" class="num">77.710 / 0.293</td>
+<td align="right" class="num">100.000 / 0.708</td>
+</tr>
+<tr>
+<td class="label">查询 q 的输入嵌入</td>
+<td align="right" class="num">100.000 / 0.195</td>
+<td align="right" class="num">0.757 / 0.610</td>
+</tr>
+<tr>
+<td class="label">读取层之后 q 的残差表示</td>
+<td align="right" class="num">81.250 / 0.146</td>
+<td align="right" class="num">99.683 / 0.977</td>
+</tr>
+</tbody></table></div>
+<p>来源：<span class="local-reference">定位结果</span>、<span class="local-reference">遮挡结果</span>、<span class="local-reference">激活恢复</span>、<span class="local-reference">探针结果</span>；配置与完整记录见<span class="local-reference">1024机制结果附表</span>。</p>
+<p><img src="report_assets_20261017/sections/s32_answer_scores.png" alt="恢复关键表示前后的答案分数"></p>
+<p class="figure-caption">图28：四层单头模型恢复表示后的答案分数。左侧为原值与替换值的平均logit差，右侧为以原输入和替换输入分数差为参照的恢复率R。</p>
+<p><a id="appendix-d-11"></a></p>
+<h3 id="d11-课程训练中的绑定与读取形成过程">D.11 课程训练中的绑定与读取形成过程</h3>
+<p>本组使用4层、隐藏宽度256、4头模型。C01先进行3000步短距训练，再进行21000步全距训练；C02使用相同批次并打乱顺序。检查点来自主结果中同一条 <code>n4night_L1024_C01/C02</code> 训练轨迹，机制任务沿用准备阶段的 <code>n4prep</code> 名称。</p>
+<p>对终点定位成功的模型，沿终点选定的绑定与读取路径追踪3000、3250、4500和24000步。每个阶段使用相同512条序列、8135个长距查询。下表准确率单位为%，注意力权重范围为0—1；这里记录机制评测读数，与训练归档的共同最终测试分别列示。</p>
+<p><strong>C01：先短后全。</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">步数</th>
+<th align="right">长距准确率</th>
+<th align="right">绑定注意力</th>
+<th align="right">读取注意力</th>
+<th align="right">遮挡绑定边后准确率</th>
+<th align="right">遮挡读取边后准确率</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num"><span class="local-reference">3000</span></td>
+<td align="right" class="num">0.860</td>
+<td align="right" class="num">0.9677</td>
+<td align="right" class="num">0.0010</td>
+<td align="right" class="num">0.848</td>
+<td align="right" class="num">0.848</td>
+</tr>
+<tr>
+<td class="num">1000</td>
+<td align="right" class="num"><span class="local-reference">3250</span></td>
+<td align="right" class="num">65.126</td>
+<td align="right" class="num">0.9999</td>
+<td align="right" class="num">0.1882</td>
+<td align="right" class="num">55.734</td>
+<td align="right" class="num">43.602</td>
+</tr>
+<tr>
+<td class="num">1000</td>
+<td align="right" class="num"><span class="local-reference">4500</span></td>
+<td align="right" class="num">97.025</td>
+<td align="right" class="num">0.9997</td>
+<td align="right" class="num">0.7508</td>
+<td align="right" class="num">66.552</td>
+<td align="right" class="num">36.755</td>
+</tr>
+<tr>
+<td class="num">1000</td>
+<td align="right" class="num"><span class="local-reference">24000</span></td>
+<td align="right" class="num">99.951</td>
+<td align="right" class="num">0.9994</td>
+<td align="right" class="num">0.9971</td>
+<td align="right" class="num">7.228</td>
+<td align="right" class="num">2.876</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num"><span class="local-reference">3000</span></td>
+<td align="right" class="num">0.774</td>
+<td align="right" class="num">0.9954</td>
+<td align="right" class="num">0.0004</td>
+<td align="right" class="num">0.799</td>
+<td align="right" class="num">0.774</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num"><span class="local-reference">3250</span></td>
+<td align="right" class="num">91.801</td>
+<td align="right" class="num">0.9423</td>
+<td align="right" class="num">0.4106</td>
+<td align="right" class="num">85.101</td>
+<td align="right" class="num">68.924</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num"><span class="local-reference">4500</span></td>
+<td align="right" class="num">99.385</td>
+<td align="right" class="num">1.0000</td>
+<td align="right" class="num">0.8891</td>
+<td align="right" class="num">41.242</td>
+<td align="right" class="num">57.001</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num"><span class="local-reference">24000</span></td>
+<td align="right" class="num">99.988</td>
+<td align="right" class="num">0.9995</td>
+<td align="right" class="num">0.9977</td>
+<td align="right" class="num">7.732</td>
+<td align="right" class="num">10.744</td>
+</tr>
+</tbody></table></div>
+<p><strong>C02：相同批次打乱顺序。</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">步数</th>
+<th align="right">长距准确率</th>
+<th align="right">绑定注意力</th>
+<th align="right">读取注意力</th>
+<th align="right">遮挡绑定边后准确率</th>
+<th align="right">遮挡读取边后准确率</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num"><span class="local-reference">3000</span></td>
+<td align="right" class="num">3.356</td>
+<td align="right" class="num">0.0084</td>
+<td align="right" class="num">0.0068</td>
+<td align="right" class="num">3.356</td>
+<td align="right" class="num">3.208</td>
+</tr>
+<tr>
+<td class="num">1000</td>
+<td align="right" class="num"><span class="local-reference">3250</span></td>
+<td align="right" class="num">4.253</td>
+<td align="right" class="num">0.0055</td>
+<td align="right" class="num">0.0039</td>
+<td align="right" class="num">4.253</td>
+<td align="right" class="num">4.106</td>
+</tr>
+<tr>
+<td class="num">1000</td>
+<td align="right" class="num"><span class="local-reference">4500</span></td>
+<td align="right" class="num">4.376</td>
+<td align="right" class="num">0.0072</td>
+<td align="right" class="num">0.0002</td>
+<td align="right" class="num">4.352</td>
+<td align="right" class="num">4.339</td>
+</tr>
+<tr>
+<td class="num">1000</td>
+<td align="right" class="num"><span class="local-reference">24000</span></td>
+<td align="right" class="num">99.459</td>
+<td align="right" class="num">0.9999</td>
+<td align="right" class="num">0.9593</td>
+<td align="right" class="num">2.643</td>
+<td align="right" class="num">87.990</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num"><span class="local-reference">3000</span></td>
+<td align="right" class="num">3.491</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="num">0.0172</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="label">NA</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num"><span class="local-reference">3250</span></td>
+<td align="right" class="num">4.118</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="num">0.0177</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="label">NA</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num"><span class="local-reference">4500</span></td>
+<td align="right" class="num">3.995</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="num">0.0161</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="label">NA</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td align="right" class="num"><span class="local-reference">24000</span></td>
+<td align="right" class="num">7.277</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="num">0.0085</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="label">NA</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num"><span class="local-reference">3000</span></td>
+<td align="right" class="num">3.884</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="num">0.0137</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="label">NA</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num"><span class="local-reference">3250</span></td>
+<td align="right" class="num">4.179</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="num">0.0141</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="label">NA</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num"><span class="local-reference">4500</span></td>
+<td align="right" class="num">3.688</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="num">0.0138</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="label">NA</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num"><span class="local-reference">24000</span></td>
+<td align="right" class="num">7.253</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="num">0.0090</td>
+<td align="right" class="label">NA</td>
+<td align="right" class="label">NA</td>
+</tr>
+</tbody></table></div>
+<p>C02 seed1001/1002未定位到完整路径，保留候选读取位置的注意力；绑定与相应遮挡记为NA，不填0。C01 seed1001的阶段评测已补齐，下表单列新增读数。各阶段的匹配位置对照及注意力原始记录见<span class="local-reference">1024机制结果附表</span>。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th>步数</th>
+<th>原模型长距%</th>
+<th>局部关联注意力</th>
+<th>远距读取注意力</th>
+<th>限制局部读取后%</th>
+<th>限制远距读取后%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1001</td>
+<td class="num">3000</td>
+<td class="num">1.1063</td>
+<td class="num">0.999532</td>
+<td class="num">0.003143</td>
+<td class="num">0.7007</td>
+<td class="num">0.7253</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td class="num">3250</td>
+<td class="num">99.2133</td>
+<td class="num">0.999982</td>
+<td class="num">0.917595</td>
+<td class="num">2.8027</td>
+<td class="num">0.6761</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td class="num">4500</td>
+<td class="num">99.6927</td>
+<td class="num">1.000000</td>
+<td class="num">0.964739</td>
+<td class="num">2.0897</td>
+<td class="num">0.6515</td>
+</tr>
+<tr>
+<td class="num">1001</td>
+<td class="num">24000</td>
+<td class="num">99.9262</td>
+<td class="num">0.999972</td>
+<td class="num">0.994283</td>
+<td class="num">2.0406</td>
+<td class="num">0.9342</td>
+</tr>
+</tbody></table></div>
+<p><a id="appendix-d-12"></a></p>
+<h3 id="d12-新增种子的确认检验">D.12 新增种子的确认检验</h3>
+<p>本表仅纳入实验前已确定的比较与种子范围：四项学习比较使用0.05/4，六项结构速度比较使用0.05/6，三项补充距离比较使用0.05/3，分别控制各组的多重比较。两层与一层单头比较最终长距准确率，其余三项主要学习比较以最终长距准确率达到98%为二元指标；结构与比例速度比较使用配对达标步数比的对数；uniform与loguniform比较12000步内是否稳定达标。旧seed 0/1/2不并入确认轮。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>比较</th>
+<th align="right">确认配对数</th>
+<th>原定检验</th>
+<th align="right">双侧p值</th>
+<th align="right">校正阈值</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">两层单头 / 一层单头</td>
+<td align="right" class="num">11</td>
+<td class="label">配对t检验</td>
+<td align="right" class="num">0.0283877</td>
+<td align="right" class="num">0.01250</td>
+<td class="label">未达到校正阈值</td>
+</tr>
+<tr>
+<td class="label">NoPE加smear / NoPE</td>
+<td align="right" class="num">8</td>
+<td class="label">精确McNemar</td>
+<td align="right" class="num">0.0078125</td>
+<td align="right" class="num">0.01250</td>
+<td class="label">达到校正阈值</td>
+</tr>
+<tr>
+<td class="label">3.125%长距监督 / 0%</td>
+<td align="right" class="num">8</td>
+<td class="label">精确McNemar</td>
+<td align="right" class="num">0.0078125</td>
+<td align="right" class="num">0.01250</td>
+<td class="label">达到校正阈值</td>
+</tr>
+<tr>
+<td class="label">先短后全 / 打乱</td>
+<td align="right" class="num">8</td>
+<td class="label">精确McNemar</td>
+<td align="right" class="num">0.03125</td>
+<td align="right" class="num">0.01250</td>
+<td class="label">未达到校正阈值</td>
+</tr>
+<tr>
+<td class="label">两层 / 四层</td>
+<td align="right" class="num">7</td>
+<td class="label">配对t检验</td>
+<td align="right" class="num">0.0444964</td>
+<td align="right" class="num">0.00833</td>
+<td class="label">未达到校正阈值</td>
+</tr>
+<tr>
+<td class="label">四层 / 八层</td>
+<td align="right" class="num">8</td>
+<td class="label">配对t检验</td>
+<td align="right" class="num">0.211206</td>
+<td align="right" class="num">0.00833</td>
+<td class="label">未达到校正阈值</td>
+</tr>
+<tr>
+<td class="label">宽256 / 宽128</td>
+<td align="right" class="num">7</td>
+<td class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">0.00833</td>
+<td class="label">有未达标运行，原完整时间检验未执行</td>
+</tr>
+<tr>
+<td class="label">宽256 / 宽512</td>
+<td align="right" class="num">4</td>
+<td class="label">配对t检验</td>
+<td align="right" class="num">0.0223556</td>
+<td align="right" class="num">0.00833</td>
+<td class="label">未达到校正阈值</td>
+</tr>
+<tr>
+<td class="label">四头 / 单头</td>
+<td align="right" class="num">3</td>
+<td class="label">配对t检验</td>
+<td align="right" class="num">0.580861</td>
+<td align="right" class="num">0.00833</td>
+<td class="label">未达到校正阈值</td>
+</tr>
+<tr>
+<td class="label">四头 / 十六头</td>
+<td align="right" class="num">13</td>
+<td class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">0.00833</td>
+<td class="label">有未达标运行，原完整时间检验未执行</td>
+</tr>
+<tr>
+<td class="label">25%长距监督 / 100%</td>
+<td align="right" class="num">13</td>
+<td class="num">—</td>
+<td align="right" class="num">—</td>
+<td align="right" class="num">0.01667</td>
+<td class="label">有未达标运行，原完整时间检验未执行</td>
+</tr>
+<tr>
+<td class="label">25%长距监督 / 3.125%</td>
+<td align="right" class="num">19</td>
+<td class="label">配对t检验</td>
+<td align="right" class="num">0.0100715</td>
+<td align="right" class="num">0.01667</td>
+<td class="label">达到校正阈值</td>
+</tr>
+<tr>
+<td class="label">loguniform / uniform</td>
+<td align="right" class="num">12</td>
+<td class="label">精确McNemar</td>
+<td align="right" class="num">0.000976562</td>
+<td align="right" class="num">0.01667</td>
+<td class="label">达到校正阈值</td>
+</tr>
+</tbody></table></div>
+<p>含未达标运行的完整达标时间比较保留全部配对，未删除失败种子来执行原定配对t检验。图中的预算内受限步数拟合用于描述总体趋势，不代替这里原定的确认检验。</p>
+<p>来源：<span class="local-reference">确认统计与逐种子差值</span>、<span class="local-reference">复现脚本</span>、<span class="local-reference">原统计设计</span>、<span class="local-reference">补充距离比较</span>。</p>
+<p><a id="appendix-d-13"></a></p>
+<h3 id="d13-补回正文的注意力答案分数与阶段对照">D.13 补回正文的注意力、答案分数与阶段对照</h3>
+<p>本节汇总第3.2、3.5、4.3节及长度扩展使用的机制读数，来自已归档结果和本次Mac冻结分析。各模型保留对应评测样本；配套数据保存来源路径与SHA256。</p>
+<p><strong>两层单头中两个头的注意力。</strong> 与图5使用相同的初轮64000步权重和固定诊断序列。每层只有一个头，数值为长距查询上的平均注意力权重。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">层</th>
+<th align="right">值位置→前一键</th>
+<th align="right">查询→源键</th>
+<th align="right">查询→原值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td align="right" class="num">1</td>
+<td align="right" class="num">0.404644</td>
+<td align="right" class="num">0.803015</td>
+<td align="right" class="num">0.000206</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td align="right" class="num">2</td>
+<td align="right" class="num">0.127341</td>
+<td align="right" class="num">0.000000</td>
+<td align="right" class="num">0.730510</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">1</td>
+<td align="right" class="num">0.517590</td>
+<td align="right" class="num">0.000172</td>
+<td align="right" class="num">0.021237</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">2</td>
+<td align="right" class="num">0.083937</td>
+<td align="right" class="num">0.418946</td>
+<td align="right" class="num">0.566554</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">1</td>
+<td align="right" class="num">0.020811</td>
+<td align="right" class="num">0.000710</td>
+<td align="right" class="num">0.014046</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">2</td>
+<td align="right" class="num">0.027607</td>
+<td align="right" class="num">0.000271</td>
+<td align="right" class="num">0.009069</td>
+</tr>
+</tbody></table></div>
+<p><strong>两层单头的线性探针。</strong> 三个种子分别使用原训练64000步最终权重，未使用续训终点。Transformer保持冻结，参数前后SHA256相同。沿用四层探针的四个取值位置、两个预测目标与真实/打乱标签对照；两层模型在源值位置取第一层输出、在查询位置取第二层输出。每个分类器由零初始化的线性权重与偏置组成，使用Adam（学习率0.01，weight decay为0.0001）全批量训练400步。标准化均值和方差只在训练集拟合。</p>
+<p>训练、验证、测试分别为512、128、128条独立序列，对应16384、4096、4096个查询；seed为920000、930000、940000。三个种子使用相同的分析序列，各分割的整序列哈希不重叠。数据由原生成器在CPU生成，冻结模型前向与分类器拟合在Mac的Apple GPU上以FP32执行；与四层CUDA/BF16结果的数值差异不作为深度效应比较。每个模型都通过相同输入的CPU/MPS预测一致性检查。下表为完整测试集准确率（%）；键和值的机会水平分别为0.1953%和0.78125%。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th>探针输入</th>
+<th align="right">源键·真实标签</th>
+<th align="right">源键·打乱标签</th>
+<th align="right">答案值·真实标签</th>
+<th align="right">答案值·打乱标签</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td class="label">源值位置·输入</td>
+<td align="right" class="num">0.2686</td>
+<td align="right" class="num">0.1221</td>
+<td align="right" class="num">100.0000</td>
+<td align="right" class="num">0.8057</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">源值位置·第一层输出</td>
+<td align="right" class="num">49.4629</td>
+<td align="right" class="num">0.1953</td>
+<td align="right" class="num">100.0000</td>
+<td align="right" class="num">0.4883</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">查询位置·输入</td>
+<td align="right" class="num">100.0000</td>
+<td align="right" class="num">0.2441</td>
+<td align="right" class="num">0.7568</td>
+<td align="right" class="num">0.8301</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">查询位置·第二层输出</td>
+<td align="right" class="num">34.3506</td>
+<td align="right" class="num">0.1465</td>
+<td align="right" class="num">81.5674</td>
+<td align="right" class="num">0.9277</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">源值位置·输入</td>
+<td align="right" class="num">0.2197</td>
+<td align="right" class="num">0.1709</td>
+<td align="right" class="num">100.0000</td>
+<td align="right" class="num">0.9277</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">源值位置·第一层输出</td>
+<td align="right" class="num">45.7031</td>
+<td align="right" class="num">0.0977</td>
+<td align="right" class="num">100.0000</td>
+<td align="right" class="num">1.0010</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">查询位置·输入</td>
+<td align="right" class="num">100.0000</td>
+<td align="right" class="num">0.1221</td>
+<td align="right" class="num">0.7812</td>
+<td align="right" class="num">0.7812</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">查询位置·第二层输出</td>
+<td align="right" class="num">80.0293</td>
+<td align="right" class="num">0.2197</td>
+<td align="right" class="num">84.3018</td>
+<td align="right" class="num">0.8301</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">源值位置·输入</td>
+<td align="right" class="num">0.2930</td>
+<td align="right" class="num">0.1709</td>
+<td align="right" class="num">100.0000</td>
+<td align="right" class="num">0.8301</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">源值位置·第一层输出</td>
+<td align="right" class="num">0.1709</td>
+<td align="right" class="num">0.1221</td>
+<td align="right" class="num">98.3154</td>
+<td align="right" class="num">0.7812</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">查询位置·输入</td>
+<td align="right" class="num">100.0000</td>
+<td align="right" class="num">0.2197</td>
+<td align="right" class="num">0.7812</td>
+<td align="right" class="num">0.9033</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">查询位置·第二层输出</td>
+<td align="right" class="num">14.9414</td>
+<td align="right" class="num">0.1709</td>
+<td align="right" class="num">3.5645</td>
+<td align="right" class="num">0.6592</td>
+</tr>
+</tbody></table></div>
+<p>长距查询子集为同一测试集中的2047个查询，另列下面两项主要读数；它们不替代上表完整测试集分母。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">第一层源值位置预测源键</th>
+<th align="right">第二层查询位置预测答案值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td align="right" class="num">49.8779%</td>
+<td align="right" class="num">81.6317%</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">52.1739%</td>
+<td align="right" class="num">83.4392%</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">0.0977%</td>
+<td align="right" class="num">3.6639%</td>
+</tr>
+</tbody></table></div>
+<p>来源：<span class="local-reference">本地探针结果与执行记录</span>。预测、标签、序列哈希、标准化参数和分类器权重均保存在各种子目录中。</p>
+<p><strong>两层单头的读取限制。</strong> 三个模型均使用原训练64000步权重，层从1计数，唯一头固定为相应层的头。数据为原共同评测集4096条序列、131072个查询，长距子集65367个查询；下表为长距准确率（%）。指定位置由两层计算假设预先确定，不按干预效果选取。失败种子的同位置操作不命名为已定位的成功回路。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>条件</th>
+<th align="right">seed 0</th>
+<th align="right">seed 1</th>
+<th align="right">seed 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">正常读取</td>
+<td align="right" class="num">83.1995</td>
+<td align="right" class="num">85.3229</td>
+<td align="right" class="num">6.6976</td>
+</tr>
+<tr>
+<td class="label">无操作重算</td>
+<td align="right" class="num">83.1995</td>
+<td align="right" class="num">85.3229</td>
+<td align="right" class="num">6.6976</td>
+</tr>
+<tr>
+<td class="label">第一层值不读前一键</td>
+<td align="right" class="num">27.2324</td>
+<td align="right" class="num">18.3089</td>
+<td align="right" class="num">6.6899</td>
+</tr>
+<tr>
+<td class="label">第二层查询不读原值</td>
+<td align="right" class="num">1.1749</td>
+<td align="right" class="num">17.3635</td>
+<td align="right" class="num">2.1968</td>
+</tr>
+<tr>
+<td class="label">同时限制两次读取</td>
+<td align="right" class="num">1.1902</td>
+<td align="right" class="num">17.4599</td>
+<td align="right" class="num">2.1861</td>
+</tr>
+<tr>
+<td class="label">第一层值不读无关词元</td>
+<td align="right" class="num">83.1597</td>
+<td align="right" class="num">85.3229</td>
+<td align="right" class="num">6.6379</td>
+</tr>
+<tr>
+<td class="label">第二层查询不读无关词元</td>
+<td align="right" class="num">83.2117</td>
+<td align="right" class="num">85.3229</td>
+<td align="right" class="num">6.6777</td>
+</tr>
+<tr>
+<td class="label">第二层查询头输出置零</td>
+<td align="right" class="num">0.7236</td>
+<td align="right" class="num">4.9077</td>
+<td align="right" class="num">3.8858</td>
+</tr>
+<tr>
+<td class="label">第一层查询头输出置零</td>
+<td align="right" class="num">1.3508</td>
+<td align="right" class="num">16.7087</td>
+<td align="right" class="num">0.0046</td>
+</tr>
+</tbody></table></div>
+<p><strong>两层单头的表示恢复。</strong> 每个模型使用512对序列，每条选择一个长距查询。恢复值表示发生在第一层源值位置，恢复读取输出发生在第二层查询处的头输出投影之前。原位放回对照使用替换输入自身的表示，不应改变其输出。下表分别保留原值输出比例、替换值输出比例与原值减替换值的平均logit差。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th>条件</th>
+<th align="right">输出原值%</th>
+<th align="right">输出替换值%</th>
+<th align="right">平均logit差</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td class="label">原输入</td>
+<td align="right" class="num">82.4219</td>
+<td align="right" class="num">0.1953</td>
+<td align="right" class="num">16.791824</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">替换源值</td>
+<td align="right" class="num">0.0000</td>
+<td align="right" class="num">80.8594</td>
+<td align="right" class="num">-16.706347</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">恢复第一层值表示</td>
+<td align="right" class="num">82.2266</td>
+<td align="right" class="num">0.1953</td>
+<td align="right" class="num">16.743315</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">恢复第二层查询头输出</td>
+<td align="right" class="num">82.4219</td>
+<td align="right" class="num">0.1953</td>
+<td align="right" class="num">16.791937</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">恢复无关位置</td>
+<td align="right" class="num">0.0000</td>
+<td align="right" class="num">80.8594</td>
+<td align="right" class="num">-16.706347</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">原位放回</td>
+<td align="right" class="num">0.0000</td>
+<td align="right" class="num">80.8594</td>
+<td align="right" class="num">-16.706347</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">原输入</td>
+<td align="right" class="num">87.1094</td>
+<td align="right" class="num">0.0000</td>
+<td align="right" class="num">23.114460</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">替换源值</td>
+<td align="right" class="num">0.3906</td>
+<td align="right" class="num">87.1094</td>
+<td align="right" class="num">-23.483315</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">恢复第一层值表示</td>
+<td align="right" class="num">70.7031</td>
+<td align="right" class="num">5.8594</td>
+<td align="right" class="num">17.566183</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">恢复第二层查询头输出</td>
+<td align="right" class="num">70.5078</td>
+<td align="right" class="num">7.4219</td>
+<td align="right" class="num">17.492569</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">恢复无关位置</td>
+<td align="right" class="num">0.3906</td>
+<td align="right" class="num">87.1094</td>
+<td align="right" class="num">-23.483315</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">原位放回</td>
+<td align="right" class="num">0.3906</td>
+<td align="right" class="num">87.1094</td>
+<td align="right" class="num">-23.483315</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">原输入</td>
+<td align="right" class="num">8.0078</td>
+<td align="right" class="num">0.9766</td>
+<td align="right" class="num">3.090962</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">替换源值</td>
+<td align="right" class="num">0.5859</td>
+<td align="right" class="num">8.3984</td>
+<td align="right" class="num">-3.393651</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">恢复第一层值表示</td>
+<td align="right" class="num">2.5391</td>
+<td align="right" class="num">2.9297</td>
+<td align="right" class="num">-1.887793</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">恢复第二层查询头输出</td>
+<td align="right" class="num">7.2266</td>
+<td align="right" class="num">1.9531</td>
+<td align="right" class="num">0.594289</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">恢复无关位置</td>
+<td align="right" class="num">0.5859</td>
+<td align="right" class="num">8.3984</td>
+<td align="right" class="num">-3.393651</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">原位放回</td>
+<td align="right" class="num">0.5859</td>
+<td align="right" class="num">8.3984</td>
+<td align="right" class="num">-3.393651</td>
+</tr>
+</tbody></table></div>
+<p>恢复率以全部512对序列为主分析，按照原输入和替换输入的平均分数差归一化；区间使用序列级配对bootstrap1000次。分母区间覆盖零时保留NA，不以0替代。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th>恢复内容</th>
+<th align="right">恢复率R</th>
+<th>95%区间</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td class="label">第一层值表示</td>
+<td align="right" class="num">0.9986</td>
+<td class="label">[0.9971, 0.9996]</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">第二层查询头输出</td>
+<td align="right" class="num">1.0000</td>
+<td class="label">[1.0000, 1.0000]</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="label">无关位置</td>
+<td align="right" class="num">0.0000</td>
+<td class="label">[0.0000, 0.0000]</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">第一层值表示</td>
+<td align="right" class="num">0.8809</td>
+<td class="label">[0.8637, 0.8968]</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">第二层查询头输出</td>
+<td align="right" class="num">0.8794</td>
+<td class="label">[0.8618, 0.8956]</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="label">无关位置</td>
+<td align="right" class="num">0.0000</td>
+<td class="label">[0.0000, 0.0000]</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">第一层值表示</td>
+<td align="right" class="num">0.2322</td>
+<td class="label">[0.2135, 0.2523]</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">第二层查询头输出</td>
+<td align="right" class="num">0.6150</td>
+<td class="label">[0.5792, 0.6510]</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="label">无关位置</td>
+<td align="right" class="num">0.0000</td>
+<td class="label">[0.0000, 0.0000]</td>
+</tr>
+</tbody></table></div>
+<p>来源：<span class="local-reference">两层本地干预结果与核验</span>。Mac使用FP32执行；读取限制沿用哈希固定的共同评测集，表示恢复使用CPU上的原生成器与既定种子。每个模型参数前后SHA256相同，逐查询读数已复算。第一层头在查询位置的置零操作按实际层与位置命名，不视为无关头对照。</p>
+<p><strong>成功四层单头的逐层注意力。</strong> 使用128条独立诊断序列、2057个长距查询，层从1计数，头均为该层唯一的头。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>层</th>
+<th align="right">值位置→源键</th>
+<th align="right">查询→源键</th>
+<th align="right">查询→原值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1</td>
+<td align="right" class="num">0.002657</td>
+<td align="right" class="num">0.006786</td>
+<td align="right" class="num">0.000728</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">0.999839</td>
+<td align="right" class="num">0.000973</td>
+<td align="right" class="num">0.001239</td>
+</tr>
+<tr>
+<td class="num">3</td>
+<td align="right" class="num">0.005618</td>
+<td align="right" class="num">0.000226</td>
+<td align="right" class="num">0.975347</td>
+</tr>
+<tr>
+<td class="num">4</td>
+<td align="right" class="num">0.022491</td>
+<td align="right" class="num">0.006345</td>
+<td align="right" class="num">0.668083</td>
+</tr>
+</tbody></table></div>
+<p><strong>两层单头的读取与答案分数。</strong> 均为初轮64000步权重，在16条固定诊断序列上测量，长距查询254个；分数差为正确值logit减最高分错误值logit。此处是同一预算下的诊断，不使用续训终点替换。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">第二层查询→原值注意力</th>
+<th align="right">正确答案的平均logit差</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td align="right" class="num">0.730510</td>
+<td align="right" class="num">6.322834</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">0.566554</td>
+<td align="right" class="num">7.331693</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">0.009069</td>
+<td align="right" class="num">-0.849010</td>
+</tr>
+</tbody></table></div>
+<p><strong>激活恢复的分数变化。</strong> 使用与<a href="#appendix-d-10">附录D.10</a>相同的512对序列。这里比较原值与替换值的logit，和上一表的“最高分错误值”不同。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>条件</th>
+<th align="right">原值logit减替换值logit的平均值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">原输入</td>
+<td align="right" class="num">16.312805</td>
+</tr>
+<tr>
+<td class="label">替换源值</td>
+<td align="right" class="num">-16.235228</td>
+</tr>
+<tr>
+<td class="label">恢复值位置的表示</td>
+<td align="right" class="num">16.289093</td>
+</tr>
+<tr>
+<td class="label">恢复查询处的读取输出</td>
+<td align="right" class="num">13.954743</td>
+</tr>
+<tr>
+<td class="label">恢复无关位置</td>
+<td align="right" class="num">-16.235228</td>
+</tr>
+</tbody></table></div>
+<p><strong>课程模型的头定位。</strong> 层和头均从1计数，路径在终点定位后固定。未成功定位的模型只记录候选位置注意力，不将候选头写成已验证的检索头。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>训练条件</th>
+<th align="right">seed</th>
+<th>局部关联头</th>
+<th>检索头</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">先短后全</td>
+<td align="right" class="num">1000</td>
+<td class="label">第3层第1头</td>
+<td class="label">第4层第2头</td>
+</tr>
+<tr>
+<td class="label">打乱顺序</td>
+<td align="right" class="num">1000</td>
+<td class="label">第2层第4头</td>
+<td class="label">第4层第3头</td>
+</tr>
+<tr>
+<td class="label">先短后全</td>
+<td align="right" class="num">1002</td>
+<td class="label">第3层第4头</td>
+<td class="label">第4层第1头</td>
+</tr>
+<tr>
+<td class="label">打乱顺序</td>
+<td align="right" class="num">1002</td>
+<td class="label">未定位</td>
+<td class="label">未定位</td>
+</tr>
+</tbody></table></div>
+<p><strong>课程训练的正确答案分数。</strong> 每格为正确值logit减最高分错误值logit的平均值，使用各阶段同一组8135个长距查询。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>训练条件</th>
+<th align="right">seed</th>
+<th align="right">3000步</th>
+<th align="right">3250步</th>
+<th align="right">4500步</th>
+<th align="right">24000步</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">先短后全</td>
+<td align="right" class="num">1000</td>
+<td align="right" class="num">-9.750068</td>
+<td align="right" class="num">1.054925</td>
+<td align="right" class="num">7.768407</td>
+<td align="right" class="num">14.560562</td>
+</tr>
+<tr>
+<td class="label">打乱顺序</td>
+<td align="right" class="num">1000</td>
+<td align="right" class="num">-1.073882</td>
+<td align="right" class="num">-0.906253</td>
+<td align="right" class="num">-0.827612</td>
+<td align="right" class="num">9.296915</td>
+</tr>
+<tr>
+<td class="label">先短后全</td>
+<td align="right" class="num">1002</td>
+<td align="right" class="num">-8.729151</td>
+<td align="right" class="num">5.151022</td>
+<td align="right" class="num">9.560843</td>
+<td align="right" class="num">12.105053</td>
+</tr>
+<tr>
+<td class="label">打乱顺序</td>
+<td align="right" class="num">1002</td>
+<td align="right" class="num">-0.924444</td>
+<td align="right" class="num">-0.909714</td>
+<td align="right" class="num">-0.821458</td>
+<td align="right" class="num">-0.873459</td>
+</tr>
+</tbody></table></div>
+<p><strong>先短后全的无关位置对照。</strong> 准确率单位为%，与<a href="#appendix-d-11">附录D.11</a>使用相同模型和序列；限制无关位置的读取基本保留原表现。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">步数</th>
+<th align="right">原模型</th>
+<th align="right">限制值读取键</th>
+<th align="right">相应无关位置对照</th>
+<th align="right">限制查询读取值</th>
+<th align="right">相应无关位置对照</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">1000</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">0.860</td>
+<td align="right" class="num">0.848</td>
+<td align="right" class="num">0.860</td>
+<td align="right" class="num">0.848</td>
+<td align="right" class="num">0.848</td>
+</tr>
+<tr>
+<td class="num">1000</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">65.126</td>
+<td align="right" class="num">55.734</td>
+<td align="right" class="num">65.126</td>
+<td align="right" class="num">43.602</td>
+<td align="right" class="num">65.138</td>
+</tr>
+<tr>
+<td class="num">1000</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">97.025</td>
+<td align="right" class="num">66.552</td>
+<td align="right" class="num">97.025</td>
+<td align="right" class="num">36.755</td>
+<td align="right" class="num">97.013</td>
+</tr>
+<tr>
+<td class="num">1000</td>
+<td align="right" class="num">24000</td>
+<td align="right" class="num">99.951</td>
+<td align="right" class="num">7.228</td>
+<td align="right" class="num">99.951</td>
+<td align="right" class="num">2.876</td>
+<td align="right" class="num">99.951</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">3000</td>
+<td align="right" class="num">0.774</td>
+<td align="right" class="num">0.799</td>
+<td align="right" class="num">0.774</td>
+<td align="right" class="num">0.774</td>
+<td align="right" class="num">0.774</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">3250</td>
+<td align="right" class="num">91.801</td>
+<td align="right" class="num">85.101</td>
+<td align="right" class="num">91.727</td>
+<td align="right" class="num">68.924</td>
+<td align="right" class="num">91.764</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">4500</td>
+<td align="right" class="num">99.385</td>
+<td align="right" class="num">41.242</td>
+<td align="right" class="num">99.385</td>
+<td align="right" class="num">57.001</td>
+<td align="right" class="num">99.373</td>
+</tr>
+<tr>
+<td class="num">1002</td>
+<td align="right" class="num">24000</td>
+<td align="right" class="num">99.988</td>
+<td align="right" class="num">7.732</td>
+<td align="right" class="num">99.988</td>
+<td align="right" class="num">10.744</td>
+<td align="right" class="num">99.988</td>
+</tr>
+</tbody></table></div>
+<p>来源：<span class="local-reference">全部绘图读数与文件校验值</span>、<span class="local-reference">绘图脚本</span>、<span class="local-reference">初轮原始诊断记录</span>、<span class="local-reference">已归档机制来源与进度</span>。逐层探针和中继读取的原始来源分别见<a href="#appendix-c">附录C</a>、D.4与D.10。</p>
+<p><strong>四层单头的跨种子机制。</strong> 层从1计数，头均为该层唯一的头。各模型使用原训练保存的终点权重，层与头在独立选择集上确定，再用于评测；读取限制评测同一共同基准，恢复率以各模型全部512对样本计算。seed 0、2使用Mac上的FP32分析，seed 1沿用CUDA/BF16结果，各自使用独立分析序列。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th>局部关联层</th>
+<th>读取层</th>
+<th>值位置预测前一键%</th>
+<th>查询位置预测答案%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td class="num">3</td>
+<td class="num">4</td>
+<td class="num">52.2705</td>
+<td class="num">99.5117</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="num">2</td>
+<td class="num">3</td>
+<td class="num">77.7100</td>
+<td class="num">99.6826</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="num">2</td>
+<td class="num">3</td>
+<td class="num">64.3311</td>
+<td class="num">99.4629</td>
+</tr>
+</tbody></table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>条件</th>
+<th>seed 0<wbr>长距%</th>
+<th>seed 1<wbr>长距%</th>
+<th>seed 2<wbr>长距%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">正常读取</td>
+<td class="num">99.6114</td>
+<td class="num">99.5640</td>
+<td class="num">99.6206</td>
+</tr>
+<tr>
+<td class="label">无操作重算</td>
+<td class="num">99.6114</td>
+<td class="num">99.4753</td>
+<td class="num">99.6206</td>
+</tr>
+<tr>
+<td class="label">值不读前一键</td>
+<td class="num">2.4248</td>
+<td class="num">2.2886</td>
+<td class="num">2.2106</td>
+</tr>
+<tr>
+<td class="label">查询不读原值</td>
+<td class="num">0.8383</td>
+<td class="num">1.0785</td>
+<td class="num">1.3187</td>
+</tr>
+<tr>
+<td class="label">同时限制两次读取</td>
+<td class="num">0.8307</td>
+<td class="num">0.8980</td>
+<td class="num">0.8016</td>
+</tr>
+<tr>
+<td class="label">值不读无关词元</td>
+<td class="num">99.6114</td>
+<td class="num">99.5640</td>
+<td class="num">99.6252</td>
+</tr>
+<tr>
+<td class="label">查询不读无关词元</td>
+<td class="num">99.6130</td>
+<td class="num">99.4768</td>
+<td class="num">99.6206</td>
+</tr>
+<tr>
+<td class="label">所选读取头查询输出置零</td>
+<td class="num">0.6211</td>
+<td class="num">7.3187</td>
+<td class="num">5.7583</td>
+</tr>
+<tr>
+<td class="label">其他层头的查询输出置零</td>
+<td class="num">7.0173</td>
+<td class="num">95.5956</td>
+<td class="num">59.8788</td>
+</tr>
+</tbody></table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th>值表示恢复R</th>
+<th>读取输出恢复R</th>
+<th>无关位置恢复R</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td class="num">0.997860</td>
+<td class="num">0.999336</td>
+<td class="num">0.000000</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="num">0.999271</td>
+<td class="num">0.927551</td>
+<td class="num">0.000000</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="num">0.999887</td>
+<td class="num">0.899568</td>
+<td class="num">0.000000</td>
+</tr>
+</tbody></table></div>
+<p><strong>四层单头的跃升附近干预。</strong> 每个种子沿终点的独立路径选择结果检查实际保存快照。使用共同基准前512条序列、8135个长距查询，完整无关位置对照见<span class="local-reference">1024机制结果附表</span>。快照约每1000步保存一次，不用于推断更精细的形成先后。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th>步数</th>
+<th>正常长距%</th>
+<th>局部关联注意力</th>
+<th>远距读取注意力</th>
+<th>限制局部读取后%</th>
+<th>限制远距读取后%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td class="num">12000</td>
+<td class="num">5.2612</td>
+<td class="num">0.184387</td>
+<td class="num">0.019889</td>
+<td class="num">5.0768</td>
+<td class="num">2.1635</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="num">13000</td>
+<td class="num">14.0258</td>
+<td class="num">0.640739</td>
+<td class="num">0.092498</td>
+<td class="num">5.1875</td>
+<td class="num">0.9465</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td class="num">14000</td>
+<td class="num">99.5206</td>
+<td class="num">0.999993</td>
+<td class="num">0.959286</td>
+<td class="num">2.4093</td>
+<td class="num">0.8851</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="num">33000</td>
+<td class="num">6.7486</td>
+<td class="num">0.129134</td>
+<td class="num">0.019290</td>
+<td class="num">6.4290</td>
+<td class="num">4.0811</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="num">34000</td>
+<td class="num">8.2483</td>
+<td class="num">0.708810</td>
+<td class="num">0.027737</td>
+<td class="num">3.4173</td>
+<td class="num">5.9127</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="num">35000</td>
+<td class="num">97.8488</td>
+<td class="num">0.999016</td>
+<td class="num">0.858233</td>
+<td class="num">2.1143</td>
+<td class="num">16.5581</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="num">35750</td>
+<td class="num">99.5329</td>
+<td class="num">0.999839</td>
+<td class="num">0.975347</td>
+<td class="num">2.4216</td>
+<td class="num">1.2907</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="num">14000</td>
+<td class="num">4.0811</td>
+<td class="num">0.036088</td>
+<td class="num">0.001874</td>
+<td class="num">4.0565</td>
+<td class="num">3.9090</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="num">15000</td>
+<td class="num">10.2274</td>
+<td class="num">0.267184</td>
+<td class="num">0.067127</td>
+<td class="num">2.9010</td>
+<td class="num">1.7701</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="num">16000</td>
+<td class="num">99.2133</td>
+<td class="num">0.999937</td>
+<td class="num">0.957691</td>
+<td class="num">2.5323</td>
+<td class="num">1.3030</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="num">16250</td>
+<td class="num">99.6189</td>
+<td class="num">0.999784</td>
+<td class="num">0.968564</td>
+<td class="num">2.1635</td>
+<td class="num">1.5489</td>
+</tr>
+</tbody></table></div>
+<p><strong>课程补充种子的头位置与答案分数。</strong> 层、头从1计数，分数为正确值logit减最高分错误值logit的平均值。未定位路径的模型不把候选头写成已验证的读取头。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>条件</th>
+<th>seed</th>
+<th>局部关联头</th>
+<th>读取头</th>
+<th>3000步分数差</th>
+<th>3250步</th>
+<th>4500步</th>
+<th>24000步</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">C01</td>
+<td class="num">1001</td>
+<td class="label">第3层第1头</td>
+<td class="label">第4层第4头</td>
+<td class="num">-11.398343</td>
+<td class="num">10.092318</td>
+<td class="num">10.088308</td>
+<td class="num">11.387166</td>
+</tr>
+<tr>
+<td class="label">C02</td>
+<td class="num">1001</td>
+<td class="label">未定位</td>
+<td class="label">未定位</td>
+<td class="num">-1.051687</td>
+<td class="num">-0.988085</td>
+<td class="num">-0.873491</td>
+<td class="num">-0.812317</td>
+</tr>
+</tbody></table></div>
+<p><img src="report_assets_20261017/sections/s43_course_logits.png" alt="训练顺序与正确答案的分数变化"></p>
+<p class="figure-caption">图29：三个训练种子的正确答案相对分数，即正确值logit减最高分错误值logit的平均值；零线表示分数差的正负分界。横轴按检查点等距列示，比较先短后全与打乱顺序。</p>
+<p><strong>一层单头的表示对照。</strong> 三个模型均使用原始64000步权重，Transformer冻结，分别完成16个固定400步线性分类器。数据分割、分类器和打乱标签对照与两层本地探针相同；完整读数见逐包目录。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th>值位置预测前一键%</th>
+<th>打乱键标签%</th>
+<th>查询位置预测答案%</th>
+<th>打乱值标签%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td class="num">0.2930</td>
+<td class="num">0.2197</td>
+<td class="num">2.4414</td>
+<td class="num">0.9033</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td class="num">0.2441</td>
+<td class="num">0.1709</td>
+<td class="num">2.7832</td>
+<td class="num">0.9033</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td class="num">0.2686</td>
+<td class="num">0.1953</td>
+<td class="num">2.7344</td>
+<td class="num">0.9766</td>
+</tr>
+</tbody></table></div>
+<p><img src="report_assets_20261017/sections/s35_relay_heads.png" alt="中继路径中不同注意力头的分工"></p>
+<p class="figure-caption">图30：纯长距seed 0的中继读取：左侧为第二层各头在s+7、s+8位置对源键或源值的注意力，右侧为第三层各头在查询处对这两个中继位置的注意力之和。</p>
+<p><strong>直接读取与中继读取的表示探针。</strong> 两个模型使用相同512/128/128条序列与固定400步分类器。直接模型的train/valid/test查询数为16384/4096/4096；中继模型按s+8不晚于查询的条件保留16295/4087/4076个查询。两者第一行探针都取原值输入嵌入，中继模型的第二行才取背景词元位置s+8经过第二层后的表示。下表分别列出各自读取位置与查询位置的真实/打乱标签测试结果。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>模型</th>
+<th>位置</th>
+<th>源键·真实%</th>
+<th>源键·打乱%</th>
+<th>值·真实%</th>
+<th>值·打乱%</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="label">直接读取</td>
+<td class="label">读取位置·局部层后</td>
+<td class="num">47.3633</td>
+<td class="num">0.3906</td>
+<td class="num">100.0000</td>
+<td class="num">0.8301</td>
+</tr>
+<tr>
+<td class="label">直接读取</td>
+<td class="label">查询位置·读取层后</td>
+<td class="num">97.2168</td>
+<td class="num">0.2441</td>
+<td class="num">99.3164</td>
+<td class="num">0.8057</td>
+</tr>
+<tr>
+<td class="label">经s+8中继</td>
+<td class="label">读取位置·局部层后</td>
+<td class="num">32.1394</td>
+<td class="num">0.3680</td>
+<td class="num">98.6261</td>
+<td class="num">0.6624</td>
+</tr>
+<tr>
+<td class="label">经s+8中继</td>
+<td class="label">查询位置·读取层后</td>
+<td class="num">88.1992</td>
+<td class="num">0.1472</td>
+<td class="num">66.2169</td>
+<td class="num">1.0304</td>
+</tr>
+</tbody></table></div>
+<p><img src="report_assets_20261017/sections/s35_path_probes.png" alt="直接与中继读取路径中的表示探针"></p>
+<p class="figure-caption">图31：直接读取与中继读取模型的表示探针，分别来自全距训练与纯长距训练的四层四头seed 0。各格为对应位置表示预测源键或答案值的测试准确率（%），并保留打乱标签对照。</p>
+<p>来源：<span class="local-reference">全部机制实验完成情况</span>。1024的38个已登记机制包均已完成，包含技术核验与按原协议保留的未定位路径结果；未定位不记为零。</p>
+<p><strong>仍缺的时序材料。</strong> 五档结构对照的逐头形成时间仍缺对应的中间表示记录；已有终点分析不补写形成轨迹。原单头跃升附近与已登记课程阶段干预均已完成。</p>
+<p><a id="appendix-d-14"></a></p>
+<h3 id="d14-两次loss下降的补充检查">D.14 两次loss下降的补充检查</h3>
+<p>第4.3节补充检查原始两层单头三个种子的0步与110步权重。110步检查点由原训练过程以loss_drop标签保存。固定生成128条序列（CPU生成，seed 901000），共4096个查询，其中2079个为长距查询；各模型使用同一批输入，在Mac MPS上以FP32冻结推理。源权重均与原训练检查点清单的步数和SHA256对应，模型参数前后相同。全词表输出、按词元类别汇总的注意力及逐查询结果均保留。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">步数</th>
+<th align="right">值词表总概率</th>
+<th align="right">长距准确率</th>
+<th align="right">长距查询CE</th>
+<th align="right">第一层有效关注比例</th>
+<th align="right">第二层有效关注比例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td align="right" class="num">0</td>
+<td align="right" class="num">14.272%</td>
+<td align="right" class="num">0.144%</td>
+<td align="right" class="num">6.8542</td>
+<td align="right" class="num">0.9948</td>
+<td align="right" class="num">0.9949</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td align="right" class="num">110</td>
+<td align="right" class="num">99.309%</td>
+<td align="right" class="num">0.914%</td>
+<td align="right" class="num">4.8663</td>
+<td align="right" class="num">0.9946</td>
+<td align="right" class="num">0.8772</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">0</td>
+<td align="right" class="num">14.221%</td>
+<td align="right" class="num">0.096%</td>
+<td align="right" class="num">6.8599</td>
+<td align="right" class="num">0.9947</td>
+<td align="right" class="num">0.9948</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">110</td>
+<td align="right" class="num">99.300%</td>
+<td align="right" class="num">0.722%</td>
+<td align="right" class="num">4.8657</td>
+<td align="right" class="num">0.9947</td>
+<td align="right" class="num">0.8660</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">0</td>
+<td align="right" class="num">14.471%</td>
+<td align="right" class="num">0.192%</td>
+<td align="right" class="num">6.8229</td>
+<td align="right" class="num">0.9948</td>
+<td align="right" class="num">0.9948</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">110</td>
+<td align="right" class="num">99.304%</td>
+<td align="right" class="num">0.818%</td>
+<td align="right" class="num">4.8657</td>
+<td align="right" class="num">0.9947</td>
+<td align="right" class="num">0.5541</td>
+</tr>
+</tbody></table></div>
+<p>有效关注比例定义为 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi>H</mi><mo stretchy="false">)</mo><mi mathvariant="normal">/</mi><msub><mi>N</mi><mrow><mi mathvariant="normal">v</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">b</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">e</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\exp(H)/N_{\mathrm{visible}}</annotation></semantics></math></span></span>，其中 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi></mrow><annotation encoding="application/x-tex">H</annotation></semantics></math></span></span> 为查询行注意力分布的熵，<span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mrow><mi mathvariant="normal">v</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">b</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">e</mi></mrow></msub></mrow><annotation encoding="application/x-tex">N_{\mathrm{visible}}</annotation></semantics></math></span></span> 为该查询可见的词元数；先对每个查询计算，再取平均。越接近1，分布越接近覆盖全部可见位置的均匀注意力。它与只在键词元之间均匀分配不同。</p>
+<p>第一次下降后，两个头对键词元的总注意力仍与可见历史中键词元的比例相近，未出现只在键词元中查找的模式。原始逐类总量、对正确原值位置的注意力及全部查询结果见<span class="local-reference">首次下降的冻结结果</span>。</p>
+<p>四层单头也在初始、10000步与各自训练终点检查同一批序列。10000步是第一次下降后、检索跃升前仍保留的共同快照，不用于定位第一次下降的精确时刻。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>seed</th>
+<th align="right">步数</th>
+<th align="right">值词表总概率</th>
+<th align="right">长距准确率</th>
+<th align="right">长距查询CE</th>
+</tr>
+</thead>
+<tbody><tr>
+<td class="num">0</td>
+<td align="right" class="num">0</td>
+<td align="right" class="num">14.1949%</td>
+<td align="right" class="num">0.096%</td>
+<td align="right" class="num">6.8553</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td align="right" class="num">10000</td>
+<td align="right" class="num">99.9999%</td>
+<td align="right" class="num">4.329%</td>
+<td align="right" class="num">4.4182</td>
+</tr>
+<tr>
+<td class="num">0</td>
+<td align="right" class="num">14000</td>
+<td align="right" class="num">99.9998%</td>
+<td align="right" class="num">99.327%</td>
+<td align="right" class="num">0.0238</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">0</td>
+<td align="right" class="num">14.3805%</td>
+<td align="right" class="num">0.144%</td>
+<td align="right" class="num">6.8366</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">10000</td>
+<td align="right" class="num">99.9994%</td>
+<td align="right" class="num">3.992%</td>
+<td align="right" class="num">4.6337</td>
+</tr>
+<tr>
+<td class="num">1</td>
+<td align="right" class="num">35750</td>
+<td align="right" class="num">100.0000%</td>
+<td align="right" class="num">99.711%</td>
+<td align="right" class="num">0.0164</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">0</td>
+<td align="right" class="num">14.2511%</td>
+<td align="right" class="num">0.144%</td>
+<td align="right" class="num">6.8544</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">10000</td>
+<td align="right" class="num">99.9989%</td>
+<td align="right" class="num">4.425%</td>
+<td align="right" class="num">4.5848</td>
+</tr>
+<tr>
+<td class="num">2</td>
+<td align="right" class="num">16250</td>
+<td align="right" class="num">99.9998%</td>
+<td align="right" class="num">99.711%</td>
+<td align="right" class="num">0.0164</td>
+</tr>
+</tbody></table></div>
+<p>原始曲线与补测分别保留：<span class="local-reference">损失与准确率绘图数据</span>、<span class="local-reference">四层冻结结果</span>、<span class="local-reference">独立复核记录</span>。完整复核覆盖16个实际快照；其中两层seed 1另保存的53620步快照不计入首次下降的配对比较。</p>
+<p><a id="appendix-e"></a></p>
+<h2 id="附录e-配置预算与记录说明">附录E 配置、预算与记录说明</h2>
+<p><strong>数据生成。</strong> 背景、键和值的词表大小分别为256、512和128，总词表为896。背景词元独立随机采样，布局冲突时重新抽样，距离统计采用实际生成结果。仅在128个值中均匀猜测的准确率为0.78125%，正式评测使用完整896词表的argmax。1024上下文的可生成长距范围为512至1022。</p>
+<p><strong>默认模型。</strong> 4层、隐藏宽度256、4头、每头64维，FFN宽度704，使用RMSNorm和SwiGLU。线性层无bias，输入输出嵌入不共享，无dropout和QK归一化；RoPE的base为10000，作用于完整头维度。</p>
+<p><strong>优化设置。</strong> AdamW学习率0.001，<span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>=</mo><mo stretchy="false">(</mo><mn>0.9</mn><mo separator="true">,</mo><mn>0.95</mn><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\beta=(0.9,0.95)</annotation></semantics></math></span></span>，weight decay为0.1，梯度裁剪阈值为1。预热200步后学习率恒定，使用BF16和TF32。每次更新128条序列，共131072个输入词元和4096个监督查询。短距预训练切换为全距训练时，优化器连续，不重新预热。</p>
+<p><strong>训练预算。</strong> 一层与两层单头为64000步；位置编码、长距监督比例和训练顺序实验为24000步；loguniform结构及本轮uniform/loguniform配对为12000步。本轮246条1024训练均运行至各自预算。初轮M/P组采用训练验证集与开发集长距准确率同时连续三次达到98%的早停条件；初轮EH1的seed 2在9980步停止，表内使用该权重的补充测试成绩，其余初轮E组保留12000步终点。</p>
+<p><strong>评测与速度标准。</strong> 开发集seed为777，每250步检查前512条序列；共同测试集seed为888，包含4096条序列、131072个查询。本轮246条结果使用相同的测试集哈希，最终测试不参与训练选择。稳定达到98%的步数取连续三次达标时的第三次检查点；第3.1节仍以长距准确率不低于80%判断基本学会。结果表的百分数按所示小数位四舍五入，完整精度保留在原始CSV与JSON中。</p>
+<p><strong>总体曲线。</strong> 图17至图20在逐种子结果上叠加有界二次趋势拟合，以logistic链接将预测保持在0与预算之间，每个种子的总权重相同，不预先限制曲线为U形。未在预算B内达标的运行仅以已观测的受限时间 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>T</mi><mo>∗</mo></msup><mo>=</mo><mi>min</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi>T</mi><mo separator="true">,</mo><mi>B</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">T^*=\min(T,B)</annotation></semantics></math></span></span> 参与拟合；曲线因此描述预算内的学习用量，不推测未观测到的达标步数。阴影按整个训练种子重抽样2000次取95%区间。宽度、头数和非零监督比例在对数横轴上拟合。按运行重抽样来表达重复实验的不确定性，可参考<a href="https://papers.neurips.cc/paper_files/paper/2021/hash/f514cec81cb148559cf475e7426eed5e-Abstract.html">Agarwal等（2021）</a>。拟合输入、系数与曲线数据见<span class="local-reference">总体拟合记录</span>。</p>
+<p><strong>读取边遮挡。</strong> 六模型的注意力扫描使用64条序列；每项遮挡使用同一组512条序列，包括8135个长距查询、8249个短距查询。四层模型遮挡最后两层，两层模型遮挡第二层，均作用于指定层的全部头，仅修改对应查询行到指定位置的连接。此实验识别模型依赖的读取位置；成功单头的逐边干预、激活恢复与表示探针见<a href="#appendix-d-10">附录D.10</a>，课程检查点的机制评测见<a href="#appendix-d-11">附录D.11</a>。</p>
+<p><strong>记录时间与已有实验。</strong> 初轮结果取自2026年10月16日18:57的57条结果汇总，两层单头续训取自19:07只读快照。正文引用的新增训练结果使用10月17日17:40复核的246条完整结果快照；机制结果合并已有归档与本次Mac冻结分析，更新时刻见机制结果索引。结果图按各小节的研究问题分别呈现，初轮位置对照与已有读取遮挡仍保留各自来源，见<a href="#appendix-c">附录C</a>。已有实验按各自保存的权重、数据集与预算列出，同一轨迹的不同检查点不视为独立种子。作为最小结构比较的起点，已有一层四头模型在64000步后的长距准确率为6.56%、4.45%和4.32%，两层四头的三个种子中有两个超过98%。已有loguniform训练的三个种子首次达到90%长距准确率的步数为3000、2250、6500，最终均超过99.8%。</p>
+<p><strong>机制分析完成情况。</strong> 两层三个种子的探针、指定读取限制与表示恢复已完成；四层三个种子的完整机制、原单头跃升附近的实际快照和三组课程匹配种子的阶段分析也已补齐。1024已登记机制包均已完成，4096的33个机制包复用核验归档。首次loss下降的两层快照及四层低准确率阶段也已补测，见<a href="#appendix-d-14">附录D.14</a>。五档逐头形成时序与尚缺训练权重的8192扩展单列为材料缺口。</p>
+<p><strong>核心结论的补充验证。</strong> 复核以独立训练种子为重复单位，同一轨迹的续训与中间检查点不新增为独立样本。对协议一致且种子对应的比较，先列逐种子差异，再汇总效应大小与不确定性；需要统计显著性检验时，围绕核心对照选择与结果类型相符的检验，并在本附录报告。达标时间尚未观测到的运行保留预算上限信息，不以预算替代真实达标时间。确认轮的逐项检验已完成，结果见<a href="#appendix-d-12">附录D.12</a>；含未达标运行而未执行原完整时间检验的比较如实保留。</p>
+<p><a href="index.html">返回正文</a></p>
+
+</main>
+</body>
+</html>
