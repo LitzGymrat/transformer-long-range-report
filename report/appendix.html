@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="source-file" content="中文技术报告附录_20261016.md">
-<meta name="source-sha256" content="61995d61a286892f31dfb4ab4cf57113c37897f91ff2cceafd6864c5a81035f8">
+<meta name="source-sha256" content="aabcdf259505562e165d9121b3d9076129c5d1fd0577008a3decad5773887f3d">
 <title>附录：Transformer 在什么条件下能够真正学会利用长距离信息</title>
 <style>
 
@@ -1452,7 +1452,7 @@ math[display="block"] { margin:0; }
 <p>这些记录每1000步保存一次，展示跃升前后的变化；对应实际快照的冻结干预已补齐，见<a href="#appendix-d-13">附录D.13</a>。</p>
 <p><strong>两层单头的续训与读取诊断。</strong> 2026年10月16日19:07的续训快照中，seed 0在97825步的开发集长距准确率为92.82%，seed 1在97975步为85.97%。这两项为续训开发集读数，初轮64000步的共同测试成绩见<a href="#appendix-a">附录A</a>；新增种子的同预算成绩另列于<a href="#appendix-d-7">附录D.7</a>。</p>
 <p> 在64000步的16条固定诊断序列上，seed 0、1、2的第二层查询对正确源值的长距注意力分别为0.731、0.567和0.009。</p>
-<p><strong>一层模型的邻接信息补充。</strong> 在已有对照中，一层四头加smear的三个种子均在1000步达到约99.98%的长距准确率。该实验直接提供前一词元的嵌入信息，用于检验浅层模型获得局部关联后的学习表现；对应证据索引见<a href="#appendix-c">附录C</a>。</p>
+<p><strong>一层模型的邻接信息补充。</strong> 在已有对照中，一层四头加smear的三个种子均在1000步达到约99.98%的长距准确率。该实验直接提供前一词元的嵌入信息，用于检验外部邻接信息对浅层模型的补偿作用；对应证据索引见<a href="#appendix-c">附录C</a>。</p>
 <p>本轮进一步在一层单头、隐藏宽度256、头维度256的模型上加入smear，三个种子均运行64000步。</p>
 <div class="table-wrap"><table>
 <thead>
