@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="source-file" content="中文技术报告草稿_20261016.md">
-<meta name="source-sha256" content="a60002f144aa37dc1d4bc218787971b6dc33e2d9a598e25155b3ec9d9215454e">
+<meta name="source-sha256" content="5a2c6516cef3b93dea8ddc2ddc62f555002ec49d7e92a00876fa3a994e0dd67c">
 <title>Transformer 在什么条件下能够真正学会利用长距离信息</title>
 <style>
 
@@ -263,13 +263,18 @@ x_{q_i}=k_i,\qquad x_{q_i+1}=v_i,\qquad
 <p>图5按种子分别展示两层的两个头。基本学会的两个种子中，第一层在值位置对前一键分配较多注意力，第二层在查询处明显读取原值；未学会的种子没有形成同样强的读取。这与先建立局部关联、再远距读取的解释相符。两个成功种子对源键的直接关注也有差异，因此还需要检查它们实际传递和使用了什么信息。</p>
 <p><img src="report_assets_20261017/sections/s32_two_layer_heads.png" alt="两层单头模型中两个头的逐种子注意力"></p>
 <p class="figure-caption">图5：两层单头模型的注意力分工，每个面板对应一个种子。行对应两个头，三列依次为值读取前一键、查询读取源键和查询读取原值的平均注意力权重。</p>
-<p><strong>为了进一步检查不同层中头所反映的信息，</strong> 我们提取相应位置的隐藏状态向量 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span></span>，用线性探针训练一个分类器，也就是根据该层位置的向量尝试预测源键（检测“局部关联头”），或是答案值（检测“检索头”）。假若预测能够达到高准确率，则说明该层的表示已经反映了相应信息，进一步为机制提供支持依据：</p>
+<p><strong>为了进一步检查不同层、不同位置的表示中反映了什么信息，</strong> 我们提取相应位置的隐藏状态向量 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span></span>，用线性探针训练一个分类器，也就是根据该层位置的向量尝试预测源键或答案值。假若预测能够达到高准确率，则说明该层该位置的表示已经反映了相应信息，进一步为机制提供支持依据：</p>
 <div class="math-display"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mover accent="true"><mi>y</mi><mo>^</mo></mover><mo>=</mo><mi>arg</mi><mo>⁡</mo><munder><mrow><mi>max</mi><mo>⁡</mo></mrow><mi>c</mi></munder><mo stretchy="false">(</mo><mi>W</mi><mi>h</mi><mo>+</mo><mi>b</mi><msub><mo stretchy="false">)</mo><mi>c</mi></msub><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">\hat y=\arg\max_c(Wh+b)_c.</annotation></semantics></math></span></div>
-<p>探针只更新分类器的 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span></span> 和 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi></mrow><annotation encoding="application/x-tex">b</annotation></semantics></math></span></span>，Transformer保持冻结。每个位置、每个预测目标分别训练一个分类器，并用另外生成的序列评测。键和值在每条序列中重新随机配对，因而测试检查的是该位置的向量能否提供当前序列中的关联信息。</p>
+<p>探针只更新分类器的 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span></span> 和 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi></mrow><annotation encoding="application/x-tex">b</annotation></semantics></math></span></span>，Transformer保持冻结。针对每一种固定的“取样层与位置”，分别训练预测源键和答案值的两个分类器，各自拥有独立的 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi></mrow><annotation encoding="application/x-tex">W</annotation></semantics></math></span></span> 和 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi></mrow><annotation encoding="application/x-tex">b</annotation></semantics></math></span></span>，并用另外生成的序列评测。键和值在每条序列中重新随机配对，因而测试检查的是该位置的向量能否提供当前序列中的关联信息。</p>
+<p>图6a沿用“A 4 …… A → ?”的例子，把四组表示逐一展开：①②都取值4所在的位置 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">s+1</annotation></semantics></math></span></span>，分别在输入嵌入和第一层输出时取；③④都取查询A的位置 <span class="math-inline"><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi></mrow><annotation encoding="application/x-tex">q</annotation></semantics></math></span></span>，分别在输入嵌入和第二层输出时取。同一组向量分别交给两个独立分类器，一个以源键A为标签，另一个以答案4为标签。图中的A、4是这条样本的正确标签；实际训练由多条新生成序列中的这些向量—标签对组成。</p>
+<img src="report_assets_20261017/sections/s32_probe_example.png" alt="A与4例子中四个取样点、两种预测目标及独立分类器的对应" style="width:100%; max-height:none;">
+
+<p class="figure-caption">图6a：四个取样点与两种预测目标的对应。①～④依次对应图6b的四行；每组向量分开训练读源键、读答案值的分类器，并分别保留打乱标签版本。</p>
+<p>值位置的输入嵌入本来就对应词元4，查询位置的输入嵌入本来就对应词元A，这两类“读自己”的格子作为本位词元对照。正文重点比较①到②时能否更好读出前一键A，以及③到④时能否更好读出远处答案4。</p>
 <p><strong>为了检查预测表现是否来自向量与实际键值的对应关系，我们设置打乱标签的对照。</strong> 这里的标签就是每个向量应当对应的源键或答案值：保留所有隐藏向量不变，在训练、验证和测试集内各自随机重排标签，再按相同设置重新训练并评测分类器。这样，各类键或值出现的次数不变，但向量与它实际对应的键或值之间的关系被打乱。比较两者，就能检查正确的对应关系是否带来了更高的预测准确率。</p>
-<p>我们在同一组两层单头模型上完成这两项比较：从4的输入嵌入与第一层输出分别预测前一键A，从查询A的输入嵌入与第二层输出分别预测答案4。图6显示，基本学会的两个种子中，经过第一层后，从值位置预测前一键的准确率明显提高；经过第二层后，从查询位置预测答案值的准确率也明显提高。这说明相应位置的表示已经反映了键信息和答案信息。未学会的种子中，从值位置预测前一键仍接近机会水平，从查询位置预测答案的能力也明显较弱。打乱标签后，没有出现相同的提高。</p>
+<p>我们在同一组两层单头模型上完成这两项比较：从4的输入嵌入与第一层输出分别预测前一键A，从查询A的输入嵌入与第二层输出分别预测答案4。图6b显示，基本学会的两个种子中，经过第一层后，从值位置预测前一键的准确率明显提高；经过第二层后，从查询位置预测答案值的准确率也明显提高。这说明相应位置的表示已经反映了键信息和答案信息。未学会的种子中，从值位置预测前一键仍接近机会水平，从查询位置预测答案的能力也明显较弱。打乱标签后，没有出现相同的提高。</p>
 <p><img src="report_assets_20261017/sections/s32_two_layer_probes.png" alt="两层单头模型的逐种子线性探针"></p>
-<p class="figure-caption">图6：两层模型的源键与答案值预测，每个面板对应一个种子。各格为相应位置表示的线性分类准确率（%），并保留打乱标签对照。</p>
+<p class="figure-caption">图6b：两层模型的源键与答案值预测，每个面板对应一个种子。各格为相应位置表示的线性分类准确率（%），并保留打乱标签对照。</p>
 <p><strong>注意力和探针结果支持了两个头的分工，接下来还需要检验，模型在回答时是否确实使用了这两步计算。</strong> 如果第一层建立局部关联、第二层取回答案，那么阻止其中任一步，原本正确的回答就应受到影响。基于这一想法，我们在评测时分别不允许第一层在4的位置读取前面的A，或者不允许第二层在查询A处读取原值4的位置。参数与输入保持原样，只限制指定位置之间的注意力读取。为了判断下降是否来自对相关位置的限制，我们同时限制相应层对无关词元的读取作为对照。基本学会的两个种子在前两项干预下，长距准确率都明显下降；无关词元的对照则基本保留原表现，见图7。</p>
 <p>在限制具体读取之后，我们再将两个头在查询处的输出分别置零，检查各头对查询计算的整体贡献。将第二层头的输出置零会破坏检索，第一层头的输出置零也有明显影响。结合图5中第一层头在查询处对源键的关注，可以看到，这个头除了在值位置处理前一键，也参与查询位置的计算，因此不能把它作为“无关头”对照。</p>
 <p><img src="report_assets_20261017/sections/s32_two_layer_restrictions.png" alt="两层单头模型的逐种子读取限制"></p>
